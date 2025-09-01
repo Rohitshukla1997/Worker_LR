@@ -1,9 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import { User, Lock } from "lucide-react";
 import Profile from "../../assets/brand/svgimg.svg";
 import Logo from "../../assets/brand/fmslog2.png";
+import { loginUser } from "../../lib/services/user_services";
 
 const Login = ({ onLogin }) => {
+  const [phone, setphone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    try {
+      setLoading(true);
+      const data = await loginUser(phone, password);
+      console.log("Login success:", data);
+
+      // Call parent onLogin or handle token save here
+      onLogin?.(data);
+    } catch (error) {
+      console.error("Login failed:", error);
+      alert("Invalid phone or password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen flex items-center justify-center bg-[#ede7f6] relative">
       {/* Decorative Circles */}
@@ -27,12 +48,14 @@ const Login = ({ onLogin }) => {
             Let's Create Transport Pass with FMS!
           </p>
 
-          {/* Username */}
+          {/* phone */}
           <div className="flex items-center border rounded-lg px-3 py-2 mb-4 bg-gray-100 w-full">
             <User className="w-5 h-5 text-gray-400 mr-2" />
             <input
               type="text"
-              placeholder="Username"
+              placeholder="phone"
+              value={phone}
+              onChange={(e) => setphone(e.target.value)}
               className="bg-transparent outline-none w-full text-sm"
             />
           </div>
@@ -43,6 +66,8 @@ const Login = ({ onLogin }) => {
             <input
               type="password"
               placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className="bg-transparent outline-none w-full text-sm"
             />
           </div>
@@ -50,10 +75,11 @@ const Login = ({ onLogin }) => {
           {/* Login Button */}
           <button
             type="button"
-            onClick={onLogin}
-            className="w-full py-2 px-4 rounded-lg text-white font-semibold bg-gradient-to-r from-[#20002c] to-[#cbb4d4] hover:opacity-90 transition"
+            onClick={handleLogin}
+            disabled={loading}
+            className="w-full py-2 px-4 rounded-lg text-white font-semibold bg-gradient-to-r from-[#20002c] to-[#cbb4d4] hover:opacity-90 transition disabled:opacity-50"
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
         </div>
 
