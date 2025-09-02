@@ -1,19 +1,6 @@
-import React, { useState } from 'react'
-import PropTypes from 'prop-types'
-import {
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CRow,
-  CTable,
-  CTableBody,
-  CTableHead,
-  CTableHeaderCell,
-  CTableDataCell,
-  CTableRow,
-} from '@coreui/react'
-import { Eye, EyeOff, Pencil, Trash2 } from 'lucide-react'
+import React, { useState } from "react";
+import PropTypes from "prop-types";
+import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 
 const skeletonStyles = `
   @keyframes pulse {
@@ -28,10 +15,6 @@ const skeletonStyles = `
     animation: pulse 1.5s infinite;
   }
 
-  .action-cell {
-    padding: 8px !important;
-  }
-
   .action-buttons {
     display: flex;
     justify-content: center;
@@ -39,29 +22,6 @@ const skeletonStyles = `
     gap: 0.75rem;
   }
 
-  .action-button {
-    border: none;
-    background: none;
-    padding: 4px;
-    border-radius: 6px;
-    transition: background 0.2s ease;
-    cursor: pointer;
-  }
-
-  .action-button:hover {
-    background-color: #e9ecef;
-  }
-
-  .action-view-button {
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  /* 🔹 Thin horizontal scrollbar */
   .table-responsive::-webkit-scrollbar {
     height: 6px;
   }
@@ -73,10 +33,10 @@ const skeletonStyles = `
     background: #f1f1f1;
   }
   .table-responsive {
-    scrollbar-width: thin; /* Firefox */
+    scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f1f1f1;
   }
-`
+`;
 
 function Table({
   title,
@@ -84,9 +44,9 @@ function Table({
   setFilteredData,
   columns,
   viewButton,
-  viewButtonLabel = 'View',
+  viewButtonLabel = "View",
   viewButtonIcon = <Eye size={16} />,
-  viewButtonColor = 'rgb(10, 45, 99)',
+  viewButtonColor = "rgb(10, 45, 99)",
   handleViewButton,
   editButton,
   handleEditButton,
@@ -95,217 +55,233 @@ function Table({
   currentPage,
   itemsPerPage,
   isFetching,
-  action = 'Action',
+  action = "Action",
 }) {
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
-  const [viewLoadingId, setViewLoadingId] = useState(null)
-  const [visiblePasswordRowId, setVisiblePasswordRowId] = useState(null)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [viewLoadingId, setViewLoadingId] = useState(null);
+  const [visiblePasswordRowId, setVisiblePasswordRowId] = useState(null);
 
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
   const handleSort = (key) => {
-    if (!columns.find((column) => column.key === key && column.sortable)) return
+    if (!columns.find((column) => column.key === key && column.sortable))
+      return;
 
-    const direction = sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
-    setSortConfig({ key, direction })
+    const direction =
+      sortConfig.key === key && sortConfig.direction === "asc" ? "desc" : "asc";
+    setSortConfig({ key, direction });
 
     const sorted = [...filteredData].sort((a, b) => {
-      const aValue = a[key]
-      const bValue = b[key]
+      const aValue = a[key];
+      const bValue = b[key];
 
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return direction === 'asc' ? aValue - bValue : bValue - aValue
+      if (typeof aValue === "number" && typeof bValue === "number") {
+        return direction === "asc" ? aValue - bValue : bValue - aValue;
       }
 
-      const aStr = String(aValue).toLowerCase()
-      const bStr = String(bValue).toLowerCase()
-      if (aStr < bStr) return direction === 'asc' ? -1 : 1
-      if (aStr > bStr) return direction === 'asc' ? 1 : -1
-      return 0
-    })
+      const aStr = String(aValue).toLowerCase();
+      const bStr = String(bValue).toLowerCase();
+      if (aStr < bStr) return direction === "asc" ? -1 : 1;
+      if (aStr > bStr) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
 
-    setFilteredData(sorted)
-  }
+    setFilteredData(sorted);
+  };
 
   const getSortIcon = (key) => {
     if (sortConfig.key === key) {
-      return sortConfig.direction === 'asc' ? '▲' : '▼'
+      return sortConfig.direction === "asc" ? "▲" : "▼";
     }
-  }
+  };
 
   return (
-    <CRow>
+    <div className="w-full">
       <style>{skeletonStyles}</style>
-      <CCol xs={12}>
-        <CCard className="mb-4">
-          <CCardHeader className="d-flex justify-content-between align-items-center">
-            <strong>{title}</strong>
-          </CCardHeader>
-          <CCardBody>
-            <CTable striped hover responsive bordered>
-              <CTableHead>
-                <CTableRow>
-                  <CTableHeaderCell className="text-center">SN</CTableHeaderCell>
-                  {columns
-                    .filter((col) => !col.hidden)
-                    .map((column, index) => (
-                      <CTableHeaderCell
-                        key={index}
-                        className="text-center"
-                        onClick={() => column.sortable && handleSort(column.key)}
-                        style={{ cursor: column.sortable ? 'pointer' : 'default' }}
-                      >
-                        {column.label} {column.sortable && getSortIcon(column.key)}
-                      </CTableHeaderCell>
-                    ))}
-                  {(editButton || deleteButton || viewButton) && (
-                    <CTableHeaderCell className="text-center">{action}</CTableHeaderCell>
-                  )}
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {isFetching ? (
-                  Array.from({ length: itemsPerPage }).map((_, index) => (
-                    <CTableRow key={`skeleton-${index}`}>
-                      <CTableDataCell className="text-center">
-                        <div className="skeleton-loader" style={{ height: '20px' }} />
-                      </CTableDataCell>
-                      {columns.map((_, colIndex) => (
-                        <CTableDataCell key={colIndex} className="text-center">
-                          <div className="skeleton-loader" style={{ height: '20px' }} />
-                        </CTableDataCell>
-                      ))}
-                      {(editButton || deleteButton || viewButton) && (
-                        <CTableDataCell className="action-cell">
-                          <div className="action-buttons">
-                            {editButton && (
-                              <div
-                                className="skeleton-loader"
-                                style={{ width: '20px', height: '20px' }}
-                              />
-                            )}
-                            {deleteButton && (
-                              <div
-                                className="skeleton-loader"
-                                style={{ width: '20px', height: '20px' }}
-                              />
-                            )}
-                            {viewButton && (
-                              <div
-                                className="skeleton-loader"
-                                style={{ width: '60px', height: '30px' }}
-                              />
-                            )}
-                          </div>
-                        </CTableDataCell>
-                      )}
-                    </CTableRow>
-                  ))
-                ) : filteredData.length === 0 ? (
-                  <CTableRow>
-                    <CTableDataCell colSpan={columns.length + 2} className="text-center">
-                      No {title} found.
-                    </CTableDataCell>
-                  </CTableRow>
-                ) : (
-                  currentData.map((row, rowIndex) => (
-                    <CTableRow key={rowIndex}>
-                      <CTableDataCell className="text-center">
-                        {(currentPage - 1) * itemsPerPage + rowIndex + 1}
-                      </CTableDataCell>
-                      {columns
-                        .filter((col) => !col.hidden)
-                        .map((column) => (
-                          <CTableDataCell key={column.key} className="text-center">
-                            {column.key === 'password' ? (
-                              <div className="d-flex align-items-center justify-content-center gap-2">
-                                <span>
-                                  {visiblePasswordRowId === row.id ? row.password : '••••••••'}
-                                </span>
-                                <button
-                                  onClick={() =>
-                                    setVisiblePasswordRowId(
-                                      visiblePasswordRowId === row.id ? null : row.id,
-                                    )
-                                  }
-                                  className="btn btn-sm btn-link p-0"
-                                  title={
-                                    visiblePasswordRowId === row.id
-                                      ? 'Show password'
-                                      : 'Hide password'
-                                  }
-                                >
-                                  {visiblePasswordRowId === row.id ? (
-                                    <Eye size={18} />
-                                  ) : (
-                                    <EyeOff size={18} />
-                                  )}
-                                </button>
-                              </div>
-                            ) : column.render ? (
-                              column.render(row)
-                            ) : (
-                              row[column.key]
-                            )}
-                          </CTableDataCell>
-                        ))}
-                      {(editButton || deleteButton || viewButton) && (
-                        <CTableDataCell className="action-cell">
-                          <div className="action-buttons">
-                            {editButton && (
-                              <button
-                                className="action-button"
-                                onClick={() => handleEditButton(row.id)}
-                                aria-label="Edit"
-                              >
-                                <Pencil color="#2D336B" size={18} />
-                              </button>
-                            )}
-                            {deleteButton && (
-                              <button
-                                className="action-button"
-                                onClick={() => handleDeleteButton(row.id)}
-                                aria-label="Delete"
-                              >
-                                <Trash2 color="#2D336B" size={18} />
-                              </button>
-                            )}
-                            {viewButton && (
-                              <button
-                                className="action-view-button"
-                                onClick={async () => {
-                                  setViewLoadingId(row.id)
-                                  await handleViewButton(row.id)
-                                  setViewLoadingId(null)
-                                }}
-                                disabled={viewLoadingId === row.id}
-                                style={{
-                                  backgroundColor: viewButtonColor,
-                                  color: 'white',
-                                  opacity: viewLoadingId === row.id ? 0.6 : 1,
-                                  border: 'none',
-                                }}
-                              >
-                                {viewButtonIcon}
-                                <span>
-                                  {viewLoadingId === row.id ? 'Loading...' : viewButtonLabel}
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                        </CTableDataCell>
-                      )}
-                    </CTableRow>
-                  ))
+
+      <div className="bg-white shadow-lg rounded-lg mb-6 border border-gray-300">
+        {/* Title section with gradient */}
+        <div
+          className="px-4 py-3 rounded-t-lg text-white font-semibold text-lg"
+          style={{ background: "linear-gradient(to right, #504255, #cbb4d4)" }}
+        >
+          {title}
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto table-responsive">
+          <table className="min-w-full border border-gray-300 border-collapse">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-center border border-gray-300">
+                  SN
+                </th>
+                {columns
+                  .filter((col) => !col.hidden)
+                  .map((column, idx) => (
+                    <th
+                      key={idx}
+                      className="px-4 py-2 text-center cursor-pointer select-none border border-gray-300"
+                      onClick={() => column.sortable && handleSort(column.key)}
+                    >
+                      {column.label}{" "}
+                      {column.sortable && getSortIcon(column.key)}
+                    </th>
+                  ))}
+                {(editButton || deleteButton || viewButton) && (
+                  <th className="px-4 py-2 text-center border border-gray-300">
+                    {action}
+                  </th>
                 )}
-              </CTableBody>
-            </CTable>
-          </CCardBody>
-        </CCard>
-      </CCol>
-    </CRow>
-  )
+              </tr>
+            </thead>
+
+            <tbody>
+              {isFetching ? (
+                Array.from({ length: itemsPerPage }).map((_, index) => (
+                  <tr key={`skeleton-${index}`}>
+                    <td className="px-4 py-2 text-center border border-gray-200">
+                      <div className="skeleton-loader h-5 w-full mx-auto" />
+                    </td>
+                    {columns.map((_, colIndex) => (
+                      <td
+                        key={colIndex}
+                        className="px-4 py-2 text-center border border-gray-200"
+                      >
+                        <div className="skeleton-loader h-5 w-full mx-auto" />
+                      </td>
+                    ))}
+                    {(editButton || deleteButton || viewButton) && (
+                      <td className="px-4 py-2 text-center border border-gray-200">
+                        <div className="action-buttons">
+                          {editButton && (
+                            <div className="skeleton-loader h-5 w-5" />
+                          )}
+                          {deleteButton && (
+                            <div className="skeleton-loader h-5 w-5" />
+                          )}
+                          {viewButton && (
+                            <div className="skeleton-loader h-7 w-16" />
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={columns.length + 2}
+                    className="px-4 py-2 text-center"
+                  >
+                    No {title} found.
+                  </td>
+                </tr>
+              ) : (
+                currentData.map((row, rowIndex) => (
+                  <tr key={rowIndex} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 text-center border border-gray-200">
+                      {(currentPage - 1) * itemsPerPage + rowIndex + 1}
+                    </td>
+                    {columns
+                      .filter((col) => !col.hidden)
+                      .map((column) => (
+                        <td
+                          key={column.key}
+                          className="px-4 py-2 text-center border border-gray-200"
+                        >
+                          {column.key === "password" ? (
+                            <div className="flex justify-center items-center gap-2">
+                              <span>
+                                {visiblePasswordRowId === row.id
+                                  ? row.password
+                                  : "••••••••"}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  setVisiblePasswordRowId(
+                                    visiblePasswordRowId === row.id
+                                      ? null
+                                      : row.id
+                                  )
+                                }
+                                className="text-gray-500 hover:text-gray-700 p-1 rounded"
+                                title={
+                                  visiblePasswordRowId === row.id
+                                    ? "Hide password"
+                                    : "Show password"
+                                }
+                              >
+                                {visiblePasswordRowId === row.id ? (
+                                  <Eye size={18} />
+                                ) : (
+                                  <EyeOff size={18} />
+                                )}
+                              </button>
+                            </div>
+                          ) : column.render ? (
+                            column.render(row)
+                          ) : (
+                            row[column.key]
+                          )}
+                        </td>
+                      ))}
+                    {(editButton || deleteButton || viewButton) && (
+                      <td className="px-4 py-2 text-center border border-gray-200">
+                        <div className="action-buttons">
+                          {editButton && (
+                            <button
+                              onClick={() => handleEditButton(row.id)}
+                              className="p-1 rounded hover:bg-gray-100"
+                              title="Edit"
+                            >
+                              <Pencil size={18} color="#2D336B" />
+                            </button>
+                          )}
+                          {deleteButton && (
+                            <button
+                              onClick={() => handleDeleteButton(row.id)}
+                              className="p-1 rounded hover:bg-gray-100"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} color="#2D336B" />
+                            </button>
+                          )}
+                          {viewButton && (
+                            <button
+                              onClick={async () => {
+                                setViewLoadingId(row.id);
+                                await handleViewButton(row.id);
+                                setViewLoadingId(null);
+                              }}
+                              disabled={viewLoadingId === row.id}
+                              className="flex items-center gap-2 px-3 py-1 rounded text-white"
+                              style={{
+                                backgroundColor: viewButtonColor,
+                                opacity: viewLoadingId === row.id ? 0.6 : 1,
+                              }}
+                            >
+                              {viewButtonIcon}
+                              <span>
+                                {viewLoadingId === row.id
+                                  ? "Loading..."
+                                  : viewButtonLabel}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 Table.propTypes = {
@@ -325,10 +301,10 @@ Table.propTypes = {
   currentPage: PropTypes.number,
   itemsPerPage: PropTypes.number,
   isFetching: PropTypes.bool,
-}
+};
 
 Table.defaultProps = {
   isFetching: false,
-}
+};
 
-export default Table
+export default Table;

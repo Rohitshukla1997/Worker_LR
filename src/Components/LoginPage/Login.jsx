@@ -1,21 +1,28 @@
 import React, { useState } from "react";
-import { User, Lock } from "lucide-react";
+import { User, Lock, Eye, EyeOff } from "lucide-react";
 import Profile from "../../assets/brand/svgimg.svg";
 import Logo from "../../assets/brand/fmslog2.png";
 import { loginUser } from "../../lib/services/user_services";
+import Cookies from "js-cookie";
 
 const Login = ({ onLogin }) => {
-  const [phone, setphone] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e?.preventDefault();
     try {
       setLoading(true);
       const data = await loginUser(phone, password);
       console.log("Login success:", data);
 
-      // Call parent onLogin or handle token save here
+      // Save token to cookies
+      if (data.token) {
+        Cookies.set("token", data.token, { expires: 7 }); // 7 days expiry
+      }
+
       onLogin?.(data);
     } catch (error) {
       console.error("Login failed:", error);
@@ -48,39 +55,52 @@ const Login = ({ onLogin }) => {
             Let's Create Transport Pass with FMS!
           </p>
 
-          {/* phone */}
-          <div className="flex items-center border rounded-lg px-3 py-2 mb-4 bg-gray-100 w-full">
-            <User className="w-5 h-5 text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="phone"
-              value={phone}
-              onChange={(e) => setphone(e.target.value)}
-              className="bg-transparent outline-none w-full text-sm"
-            />
-          </div>
+          {/* Form */}
+          <form onSubmit={handleLogin} className="w-full">
+            {/* phone */}
+            <div className="flex items-center border rounded-lg px-3 py-2 mb-4 bg-gray-100 w-full">
+              <User className="w-5 h-5 text-gray-400 mr-2" />
+              <input
+                type="text"
+                placeholder="Contact Number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="bg-transparent outline-none w-full text-sm"
+              />
+            </div>
 
-          {/* Password */}
-          <div className="flex items-center border rounded-lg px-3 py-2 mb-6 bg-gray-100 w-full">
-            <Lock className="w-5 h-5 text-gray-400 mr-2" />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="bg-transparent outline-none w-full text-sm"
-            />
-          </div>
+            {/* Password */}
+            <div className="flex items-center border rounded-lg px-3 py-2 mb-6 bg-gray-100 w-full relative">
+              <Lock className="w-5 h-5 text-gray-400 mr-2" />
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="bg-transparent outline-none w-full text-sm pr-8"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? (
+                  <Eye className="w-5 h-5" />
+                ) : (
+                  <EyeOff className="w-5 h-5" />
+                )}
+              </button>
+            </div>
 
-          {/* Login Button */}
-          <button
-            type="button"
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full py-2 px-4 rounded-lg text-white font-semibold bg-gradient-to-r from-[#20002c] to-[#cbb4d4] hover:opacity-90 transition disabled:opacity-50"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+            {/* Login Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2 px-4 rounded-lg text-white font-semibold bg-gradient-to-r from-[#20002c] to-[#cbb4d4] hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          </form>
         </div>
 
         {/* Right Section */}

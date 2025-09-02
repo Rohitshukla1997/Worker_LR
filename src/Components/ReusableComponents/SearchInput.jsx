@@ -1,56 +1,61 @@
-import React, { useEffect, useState } from 'react'
-import { CInputGroup, CInputGroupText, CFormInput, CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilSearch, cilX } from '@coreui/icons'
+import React, { useEffect, useState } from "react";
+import { X, Search } from "lucide-react"; // lightweight icon library
 
 const SearchInput = ({
   searchQuery,
   setSearchQuery,
-  placeholder = 'Search Here...',
+  placeholder = "Search Here...",
   debounceDelay = 700,
-  width = '300px', // default width
+  width = "300px", // default width
 }) => {
-  const [inputValue, setInputValue] = useState(searchQuery)
+  const [inputValue, setInputValue] = useState(searchQuery);
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      setSearchQuery(inputValue)
-    }, debounceDelay)
+      setSearchQuery(inputValue);
+    }, debounceDelay);
 
-    return () => clearTimeout(handler)
-  }, [inputValue, debounceDelay, setSearchQuery])
+    return () => clearTimeout(handler);
+  }, [inputValue, debounceDelay, setSearchQuery]);
 
   useEffect(() => {
-    setInputValue(searchQuery)
-  }, [searchQuery])
+    setInputValue(searchQuery);
+  }, [searchQuery]);
 
   return (
-    <CInputGroup style={{ width }}>
+    <div
+      className="flex items-center border rounded-md bg-white"
+      style={{ width }}
+    >
       {/* Search Icon */}
-      <CInputGroupText>
-        <CIcon icon={cilSearch} />
-      </CInputGroupText>
+      <div className="px-2 text-gray-500">
+        <Search size={18} />
+      </div>
 
       {/* Input Field */}
-      <CFormInput
+      <input
         type="text"
         placeholder={placeholder}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        style={{
-          boxShadow: inputValue ? '0 0 1px rgba(0, 123, 255, 0.75)' : 'none',
-          borderColor: inputValue ? '#007bff' : undefined,
-        }}
+        className={`flex-1 px-2 py-1 outline-none rounded-md ${
+          inputValue
+            ? "border border-blue-500 shadow-sm"
+            : "border border-transparent"
+        }`}
       />
 
       {/* Clear Button (only when input has text) */}
       {inputValue && (
-        <CButton color="light" onClick={() => setInputValue('')} style={{ border: 'none' }}>
-          <CIcon icon={cilX} />
-        </CButton>
+        <button
+          onClick={() => setInputValue("")}
+          className="px-2 text-gray-500 hover:text-gray-700"
+        >
+          <X size={18} />
+        </button>
       )}
-    </CInputGroup>
-  )
-}
+    </div>
+  );
+};
 
-export default SearchInput
+export default SearchInput;

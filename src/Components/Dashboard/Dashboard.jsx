@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import Logo from "../../assets/brand/fmslogo.svg";
 import ProfileSection from "../SubComponent/ProfileSection";
+import TpPass from "../TransportPass/TpPass";
 
 const DashboardLayout = ({ children, user, onLogout }) => {
   return (
@@ -58,7 +59,10 @@ const DashboardLayout = ({ children, user, onLogout }) => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-6">
+        {children}
+        <TpPass />
+      </main>
     </div>
   );
 };

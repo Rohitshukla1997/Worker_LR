@@ -1,7 +1,6 @@
 /* eslint-disable prettier/prettier */
-import React from 'react'
-import { CPagination, CPaginationItem } from '@coreui/react'
-import PropTypes from 'prop-types'
+import React from "react";
+import PropTypes from "prop-types";
 
 function SmartPagination({
   totalPages,
@@ -11,102 +10,109 @@ function SmartPagination({
   onItemsPerPageChange,
 }) {
   const handlePageChange = (page) => {
-    if (page === '...' || page < 1 || page > totalPages || page === currentPage) {
-      return
+    if (
+      page === "..." ||
+      page < 1 ||
+      page > totalPages ||
+      page === currentPage
+    ) {
+      return;
     }
-    onPageChange(page)
-  }
+    onPageChange(page);
+  };
 
   const getPaginationItems = () => {
-    const pages = []
+    const pages = [];
     if (totalPages <= 7) {
       for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
+        pages.push(i);
       }
     } else {
-      pages.push(1)
-      let start = Math.max(2, currentPage - 1)
-      let end = Math.min(totalPages - 1, currentPage + 1)
+      pages.push(1);
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(totalPages - 1, currentPage + 1);
 
       if (currentPage <= 3) {
-        start = 2
-        end = 4
+        start = 2;
+        end = 4;
       } else if (currentPage >= totalPages - 2) {
-        start = totalPages - 3
-        end = totalPages - 1
+        start = totalPages - 3;
+        end = totalPages - 1;
       }
 
-      if (start > 2) pages.push('...')
+      if (start > 2) pages.push("...");
       for (let i = start; i <= end; i++) {
-        pages.push(i)
+        pages.push(i);
       }
-      if (end < totalPages - 1) pages.push('...')
-      pages.push(totalPages)
+      if (end < totalPages - 1) pages.push("...");
+      pages.push(totalPages);
     }
-    return pages
-  }
+    return pages;
+  };
 
   return (
-    <div className="d-flex flex-column align-items-center mt-3 mb-3">
+    <div className="flex flex-col items-center mt-4 mb-4 space-y-2">
       {/* Pagination controls */}
-      <div className="mb-3">
-        {' '}
-        {/* Added a wrapper div for pagination */}
-        {itemsPerPage !== -1 && (
-          <CPagination align="center">
-            <CPaginationItem
-              disabled={currentPage === 1}
-              onClick={() => handlePageChange(currentPage - 1)}
-              style={{ cursor: 'pointer' }}
-            >
-              Previous
-            </CPaginationItem>
-            {getPaginationItems().map((item, index) => (
-              <CPaginationItem
-                key={index}
-                active={item === currentPage}
-                disabled={item === '...'}
-                onClick={() => handlePageChange(item)}
-                style={{ cursor: 'pointer' }}
-              >
-                {item}
-              </CPaginationItem>
-            ))}
-            <CPaginationItem
-              disabled={currentPage === totalPages}
-              onClick={() => handlePageChange(currentPage + 1)}
-              style={{ cursor: 'pointer' }}
-            >
-              Next
-            </CPaginationItem>
-          </CPagination>
-        )}
+      <div className="flex items-center space-x-1">
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded border ${
+            currentPage === 1
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          Previous
+        </button>
+
+        {getPaginationItems().map((item, index) => (
+          <button
+            key={index}
+            onClick={() => handlePageChange(item)}
+            disabled={item === "..."}
+            className={`px-3 py-1 rounded border ${
+              item === currentPage
+                ? "bg-blue-600 text-white"
+                : item === "..."
+                ? "bg-white text-gray-400 cursor-default"
+                : "bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            {item}
+          </button>
+        ))}
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded border ${
+            currentPage === totalPages
+              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+              : "bg-white text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          Next
+        </button>
       </div>
 
       {/* Items per page selector */}
-      <div className="d-flex align-items-center">
-        <label className="me-2 mb-0">Show</label>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm">Show</span>
         <select
           value={itemsPerPage}
           onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
-          className="form-select form-select-sm w-auto" // Bootstrap classes for styling
-          style={{
-            cursor: 'pointer', // Add pointer cursor
-            border: '1px solid #ced4da', // Custom border
-            borderRadius: '4px', // Rounded corners
-            paddingLeft: '1px',
-            padding: '0.25rem 1.8rem', // Adjust padding
-          }}
+          className="border border-gray-300 rounded px-2 py-1 text-sm cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value={10}>10</option>
           <option value={20}>20</option>
           <option value={50}>50</option>
           <option value={-1}>All</option>
         </select>
-        <label className="ms-2 mb-0">entries per page</label>
+        <span className="text-sm">entries per page</span>
       </div>
     </div>
-  )
+  );
 }
 
 SmartPagination.propTypes = {
@@ -115,6 +121,6 @@ SmartPagination.propTypes = {
   onPageChange: PropTypes.func.isRequired,
   itemsPerPage: PropTypes.number.isRequired,
   onItemsPerPageChange: PropTypes.func.isRequired,
-}
+};
 
-export default SmartPagination
+export default SmartPagination;
