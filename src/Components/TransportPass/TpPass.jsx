@@ -31,12 +31,13 @@ const TpPass = () => {
     queryFn: fetchTpPassData,
   });
 
-  // inside TpPass component
+  // inside vehicle
   const { data: vehicles = [] } = useQuery({
     queryKey: ["vehicles"],
     queryFn: VehicleApi,
   });
 
+  // fetch driver
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
     queryFn: DriverApi,
