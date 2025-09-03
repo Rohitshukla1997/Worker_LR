@@ -7,6 +7,8 @@ import {
   postLorryReciptApi,
   patchLorryReciptApi,
   deleteLorryReciptApi,
+  VehicleApi,
+  DriverApi,
 } from "./data/data";
 import AddButton from "../ReusableComponents/AddButton";
 import SearchInput from "../ReusableComponents/SearchInput";
@@ -18,6 +20,7 @@ import DateRangeFilterCredence from "../ReusableComponents/DateRangeFilterCreden
 const TpPass = () => {
   const queryClient = useQueryClient();
 
+  // fetch tp pass
   const {
     data: tpPass = [],
     isFetching,
@@ -25,6 +28,17 @@ const TpPass = () => {
   } = useQuery({
     queryKey: ["tpPass"],
     queryFn: fetchTpPassData,
+  });
+
+  // inside TpPass component
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ["vehicles"],
+    queryFn: VehicleApi,
+  });
+
+  const { data: drivers = [] } = useQuery({
+    queryKey: ["drivers"],
+    queryFn: DriverApi,
   });
 
   const [filteredData, setFilteredData] = useState([]);
@@ -35,7 +49,7 @@ const TpPass = () => {
   const [dateRange, setDateRange] = useState({
     startDate: null,
     endDate: null,
-  }); // Add date range state
+  });
 
   // form state
   const [showModalFrom, setShowModalFrom] = useState(false);
@@ -46,7 +60,7 @@ const TpPass = () => {
   const addTpPassMutation = useMutation({
     mutationFn: postLorryReciptApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tpPass"] });
+      queryClient.invalidateQueries(["tpPass"], { refetchActive: true });
       toast.success("TP Pass created successfully");
       setShowModalFrom(false);
     },
@@ -59,7 +73,7 @@ const TpPass = () => {
   const updateTpPassMutation = useMutation({
     mutationFn: ({ id, data }) => patchLorryReciptApi(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tpPass"] });
+      queryClient.invalidateQueries(["tpPass"], { refetchActive: true });
       toast.success("TP Pass updated successfully");
       setShowModalFrom(false);
     },
@@ -72,7 +86,7 @@ const TpPass = () => {
   const deleteTpPassMutation = useMutation({
     mutationFn: deleteLorryReciptApi,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tpPass"] });
+      queryClient.invalidateQueries(["tpPass"], { refetchActive: true });
       Swal.fire("Deleted!", "TP Pass has been deleted.", "success");
     },
     onError: (error) => {
@@ -86,24 +100,78 @@ const TpPass = () => {
 
   // Update filteredData when data changes
   useEffect(() => {
-    if (Array.isArray(tpPass) && tpPass.length > 0) {
-      setFilteredData(tpPass);
-    } else {
-      setFilteredData([]);
+    if (!Array.isArray(tpPass)) return;
+
+    let filtered = [...tpPass];
+
+    // Filter by search query
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          String(item.companyName || "")
+            .toLowerCase()
+            .includes(lowerQuery) ||
+          String(item.driverName || "")
+            .toLowerCase()
+            .includes(lowerQuery) ||
+          String(item.lorryNumber || "")
+            .toLowerCase()
+            .includes(lowerQuery) ||
+          String(item.customerName || "")
+            .toLowerCase()
+            .includes(lowerQuery) ||
+          String(item.vehicleName || "")
+            .toLowerCase()
+            .includes(lowerQuery)
+      );
     }
-  }, [tpPass]);
+
+    // Filter by date range
+    if (dateRange.startDate && dateRange.endDate) {
+      const start = new Date(dateRange.startDate).setHours(0, 0, 0, 0);
+      const end = new Date(dateRange.endDate).setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter((item) => {
+        const itemDate = new Date(item.originalDate).getTime();
+        return itemDate >= start && itemDate <= end;
+      });
+    }
+
+    setFilteredData(filtered);
+    setCurrentPage(1); // reset to first page when filter changes
+  }, [tpPass, searchQuery, dateRange]);
 
   //  handle add/edit form submission
   const handleFormSubmit = (formData) => {
+    // Find selected vehicle name from vehicleId
+    const selectedVehicle = vehicles.find(
+      (v) => v.id === (formData.vehicleId?.value || formData.vehicleId)
+    );
+
+    const selectedDriver = drivers.find(
+      (d) => d.id === (formData.driverId?.value || formData.driverId)
+    );
+
+    const payload = {
+      ...formData,
+      vehicleId: formData.vehicleId?.value || formData.vehicleId || "",
+      vehicleName: selectedVehicle?.name || "", // add vehicleName
+      driverId: formData.driverId?.value || formData.driverId || "",
+      driverName: selectedDriver?.name || "", // add driverName if needed
+    };
+
+    console.log("Payload to send:", payload);
+
     if (editMode && editingUser) {
-      updateTpPassMutation.mutate({ id: editingUser._id, data: formData });
+      updateTpPassMutation.mutate({ id: editingUser.id, data: payload });
     } else {
-      addTpPassMutation.mutate(formData);
+      addTpPassMutation.mutate(payload);
     }
   };
 
   //  handle delete with confirmation
-  const handleDelete = (id) => {
+  const handleDeleteButton = (id) => {
     Swal.fire({
       title: "Are you sure?",
       text: "This action cannot be undone.",
@@ -117,6 +185,44 @@ const TpPass = () => {
         deleteTpPassMutation.mutate(id);
       }
     });
+  };
+
+  // handle edit button
+  const handleEditButton = (id) => {
+    const recordToEdit = filteredData.find(
+      (item) => String(item.id || item._id) === String(id)
+    );
+
+    if (recordToEdit) {
+      // Format date to YYYY-MM-DD for date input
+      const formattedDate = recordToEdit.date
+        ? new Date(recordToEdit.date).toISOString().split("T")[0]
+        : "";
+
+      // Prepare vehicle select
+      const selectedVehicle = vehicles.find(
+        (v) => v.id === recordToEdit.vehicleId
+      );
+
+      // Prepare driver select
+      const selectedDriver = drivers.find(
+        (d) => d.id === recordToEdit.driverId
+      );
+
+      setEditingUser({
+        ...recordToEdit,
+        date: formattedDate,
+        vehicleId: selectedVehicle
+          ? { value: selectedVehicle.id, label: selectedVehicle.name }
+          : null,
+        driverId: selectedDriver
+          ? { value: selectedDriver.id, label: selectedDriver.name }
+          : null,
+      });
+
+      setEditMode(true);
+      setShowModalFrom(true);
+    }
   };
 
   // table columns
@@ -158,8 +264,8 @@ const TpPass = () => {
       key: "totalTransporterAmount",
       sortable: true,
     },
-    { label: "Transporter Rate On", key: "transporterRateOn", sortable: true },
-    { label: "Customer Rate On", key: "customerRateOn", sortable: true },
+    { label: "Transporter Rate On", key: "transporterRate", sortable: true },
+    { label: "Customer Rate On", key: "customerRate", sortable: true },
     { label: "Customer Freight", key: "customerFreight", sortable: true },
     { label: "Transporter Freight", key: "transporterFreight", sortable: true },
   ];
@@ -259,20 +365,29 @@ const TpPass = () => {
       required: true,
     },
     {
-      name: "vehicleName",
+      name: "vehicleId",
       label: "Vehicle Name",
-      type: "text",
-      placeholder: "Enter vehicle name",
+      type: "select",
+      placeholder: "Select vehicle",
       section: "Basic Details",
       required: true,
+      options: vehicles.map((v) => ({
+        value: v.id,
+        label: v.name,
+      })),
     },
+
     {
-      name: "driverName",
+      name: "driverId",
       label: "Driver Name",
-      type: "text",
-      placeholder: "Enter driver name",
+      type: "select",
+      placeholder: "Select driver",
       section: "Basic Details",
       required: true,
+      options: drivers.map((d) => ({
+        value: d.id,
+        label: d.name,
+      })),
     },
     {
       name: "ownerName",
@@ -429,6 +544,10 @@ const TpPass = () => {
     setDateRange({ startDate, endDate });
   };
 
+  const handleViewButton = (id) => {
+    console.log(id);
+  };
+
   return (
     <div>
       <ToastContainer />
@@ -487,15 +606,12 @@ const TpPass = () => {
         currentPage={currentPage}
         itemsPerPage={itemsPerPage}
         isFetching={isFetching}
-        deleteButton
-        editButton
-        handleDeleteButton={handleDelete}
-        handleEditButton={(id) => {
-          const item = filteredData.find((d) => d._id === id);
-          setEditingUser(item);
-          setEditMode(true);
-          setShowModalFrom(true);
-        }}
+        viewButton={true}
+        handleViewButton={handleViewButton}
+        editButton={true}
+        handleEditButton={handleEditButton}
+        deleteButton={true}
+        handleDeleteButton={handleDeleteButton}
       />
 
       {/* Pagination */}

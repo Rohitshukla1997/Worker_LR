@@ -7,8 +7,9 @@ import {
 } from "react-router-dom";
 
 import Login from "./Components/LoginPage/Login";
-import Dashboard from "./Components/Dashboard/Dashboard";
+import DashboardLayout from "./Components/Dashboard/Dashboard";
 import ProfileCard from "./Components/SubComponent/ProfileCard";
+import TpPass from "./Components/TransportPass/TpPass";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -24,7 +25,6 @@ function App() {
   }, []);
 
   const handleLogin = (data) => {
-    // Save token and user info
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.worker));
     setUser(data.worker);
@@ -51,22 +51,25 @@ function App() {
           }
         />
 
-        {/* Dashboard + Nested Routes */}
+        {/* Dashboard with nested routes */}
         <Route
           path="/dashboard"
           element={
             user ? (
-              <Dashboard user={user} onLogout={handleLogout} />
+              <DashboardLayout user={user} onLogout={handleLogout} />
             ) : (
               <Navigate to="/login" replace />
             )
           }
         >
-          {/* 👇 Nested Route Example */}
+          {/* Default Home (index route) → TpPass */}
+          <Route index element={<TpPass />} />
+
+          {/* About page → ProfileCard */}
           <Route path="profileCard" element={<ProfileCard />} />
         </Route>
 
-        {/* Default Route */}
+        {/* Default redirect */}
         <Route
           path="*"
           element={<Navigate to={user ? "/dashboard" : "/login"} replace />}

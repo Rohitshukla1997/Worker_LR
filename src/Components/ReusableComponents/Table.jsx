@@ -101,7 +101,7 @@ function Table({
       <style>{skeletonStyles}</style>
 
       <div className="bg-white shadow-lg rounded-lg mb-6 border border-gray-300">
-        {/* Title section with gradient */}
+        {/* Title */}
         <div
           className="px-4 py-3 rounded-t-lg text-white font-semibold text-lg"
           style={{ background: "linear-gradient(to right, #504255, #cbb4d4)" }}
@@ -121,7 +121,7 @@ function Table({
                   .filter((col) => !col.hidden)
                   .map((column, idx) => (
                     <th
-                      key={idx}
+                      key={column.key + "-" + idx} // unique
                       className="px-4 py-2 text-center cursor-pointer select-none border border-gray-300"
                       onClick={() => column.sortable && handleSort(column.key)}
                     >
@@ -146,7 +146,7 @@ function Table({
                     </td>
                     {columns.map((_, colIndex) => (
                       <td
-                        key={colIndex}
+                        key={`skeleton-col-${colIndex}`}
                         className="px-4 py-2 text-center border border-gray-200"
                       >
                         <div className="skeleton-loader h-5 w-full mx-auto" />
@@ -180,15 +180,17 @@ function Table({
                 </tr>
               ) : (
                 currentData.map((row, rowIndex) => (
-                  <tr key={rowIndex} className="hover:bg-gray-50">
+                  <tr key={row.id || rowIndex} className="hover:bg-gray-50">
                     <td className="px-4 py-2 text-center border border-gray-200">
                       {(currentPage - 1) * itemsPerPage + rowIndex + 1}
                     </td>
                     {columns
                       .filter((col) => !col.hidden)
-                      .map((column) => (
+                      .map((column, colIndex) => (
                         <td
-                          key={column.key}
+                          key={`${row.id || rowIndex}-${
+                            column.key
+                          }-${colIndex}`}
                           className="px-4 py-2 text-center border border-gray-200"
                         >
                           {column.key === "password" ? (

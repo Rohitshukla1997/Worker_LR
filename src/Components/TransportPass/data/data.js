@@ -50,8 +50,9 @@ export const fetchTpPassData = async () => {
             totalAmount: tpPass.totalAmount || "Unknown",
             transporterRate: tpPass.transporterRate || "Unknown",
             totalTransporterAmount: tpPass.totalTransporterAmount || "Unknown",
-            transporterRateOn: tpPass.transporterRateOn || "Unknown",
+            transporterRate: tpPass.transporterRate || "Unknown",
             customerRateOn: tpPass.customerRateOn || "Unknown",
+            customerRate: tpPass.customerRate || "Unkonwn",
             customerFreight: tpPass.customerFreight || "Unknown",
             transporterFreight: tpPass.transporterFreight || "Unknown",
         }));
@@ -67,68 +68,60 @@ export const fetchTpPassData = async () => {
 // Post api
 export const postLorryReciptApi = async (lorryrecipt) => {
     try {
-        const response = await axios.post(
+        const response = await api.post(
             `${import.meta.env.VITE_API_URL}/api/lorry-receipt/create`,
-            lorryrecipt,
-            {
-                headers: {
-                    Authorization: `Bearer ${TOKEN}`,
-                    "Content-Type": "application/json",
-                },
-            }
+            lorryrecipt
         );
 
-        if (response.status === 201 || response.status === 200) {
-            console.log("post TP data", response.data)
-            return response.data;
-        } else {
-            throw new Error(`Unexpected response status: ${response.status}`);
-        }
+        // Return response data for any successful request
+        return response.data;
     } catch (error) {
-        console.error("API Error:", error.response?.data?.message || error.message);
-        throw error;
+        // Axios error with response
+        if (error.response) {
+            console.error("API Error:", error.response.data.message || error.message);
+            throw error.response.data;
+        } else {
+            // Network or other errors
+            console.error("API Error:", error.message);
+            throw { message: error.message };
+        }
     }
-}
+};
 
-// patch api
 
+// Patch API
 export const patchLorryReciptApi = async (id, updatelr) => {
     try {
-        const response = await axios.patch(
+        const response = await api.patch(
             `${import.meta.env.VITE_API_URL}/api/lorry-receipt/update/${id}`,
-            updatelr,
-            {
-                headers: {
-                    Authorization: `Bearer ${TOKEN}`,
-                    "Content-Type": "application/json",
-                },
-            }
+            updatelr
         );
 
-        if (response.status === 201 || response.status === 200) {
-            console.log("Updated LR data", response.data)
-            return response.data;
-        } else {
-            throw new Error(`Unexpected response status: ${response.status}`);
-        }
+        // Always return response data if request is successful
+        console.log("Updated LR data", response.data);
+        return response.data;
     } catch (error) {
-        console.error("API Error:", error.response?.data?.message || error.message);
-        throw error;
+        if (error.response) {
+            // Server responded with a non-2xx status
+            console.error("API Error:", error.response.data.message || error.message);
+            throw error.response.data;
+        } else {
+            // Network error or other
+            console.error("API Error:", error.message);
+            throw { message: error.message };
+        }
     }
-}
+};
+
+
 
 
 // DELETE API  
 
 export const deleteLorryReciptApi = async (id) => {
     try {
-        const response = await axios.delete(
+        const response = await api.delete(
             `${import.meta.env.VITE_API_URL}/api/lorry-receipt/delete/${id}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${TOKEN}`,
-                },
-            }
         );
         console.log("This is Lorry Recipt Delete List by ID : ", response.data);
         return response.data;
@@ -137,3 +130,61 @@ export const deleteLorryReciptApi = async (id) => {
         throw error;
     }
 }
+
+
+// Vehicle fetch
+
+export const VehicleApi = async () => {
+    try {
+        const response = await api.get(
+            `${import.meta.env.VITE_API_URL}/api/vehicle/get-all`
+        );
+
+        // Always use response.data, not response
+        const rawData = response?.devices ?? [];
+
+        // Format into dropdown-friendly objects
+        const formattedData = rawData.map((vehicle) => ({
+            id: vehicle._id,
+            name: vehicle.name || "Unknown",
+        }));
+
+        return formattedData;
+    } catch (error) {
+        console.error("Error fetching vehicles:", error);
+        return [];
+    }
+};
+
+
+
+console.log("Vehicle it", VehicleApi())
+
+//  Driver fetch
+
+export const DriverApi = async () => {
+    try {
+        const response = await api.get(
+            `${import.meta.env.VITE_API_URL}/api/drivers/all`
+        );
+
+        // API returns array directly
+        const rawData = response ?? [];
+
+        // Format for dropdown
+        const formattedData = rawData.map((driver) => ({
+            id: driver._id,
+            name: driver.name || "Unknown",
+            supervisor: driver.supervisor || "Unknown",
+        }));
+
+        return formattedData;
+    } catch (error) {
+        console.error("Error fetching drivers:", error);
+        return [];
+    }
+};
+
+console.log("driver api", DriverApi())
+
+
