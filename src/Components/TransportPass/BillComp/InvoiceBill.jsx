@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import html2pdf from "html2pdf.js";
 import "./InvoiceBill.css";
-import logo from "../../../../assets/brand/2.png";
+import logo from "../../../assets/brand/fmslog.png";
 
 const InvoiceBill = ({ invoiceData }) => {
   const invoiceRef = useRef();
@@ -231,7 +231,7 @@ const InvoiceBill = ({ invoiceData }) => {
             </div>
             <div className="details-row">
               <p>
-                <strong>Customer Rate On:</strong> ₹{customerRateOn || 0}
+                <strong>Customer Rate On:</strong> ₹{customerRate || 0}
               </p>
               <p>
                 <strong>Customer Rate:</strong> ₹{customerRate || 0}

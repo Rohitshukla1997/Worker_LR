@@ -16,6 +16,7 @@ import Swal from "sweetalert2";
 import { toast, ToastContainer } from "react-toastify";
 import LorryForm from "../ReusableComponents/LorryFrom";
 import DateRangeFilterCredence from "../ReusableComponents/DateRangeFilterCredence";
+import InvoiceBill from "./BillComp/InvoiceBill";
 
 const TpPass = () => {
   const queryClient = useQueryClient();
@@ -55,6 +56,10 @@ const TpPass = () => {
   const [showModalFrom, setShowModalFrom] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+
+  // Invoice modal state
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [selectedInvoiceData, setSelectedInvoiceData] = useState(null);
 
   //  Add mutation
   const addTpPassMutation = useMutation({
@@ -544,8 +549,15 @@ const TpPass = () => {
     setDateRange({ startDate, endDate });
   };
 
+  // handle view bill button
   const handleViewButton = (id) => {
-    console.log(id);
+    const selectedData = filteredData.find(
+      (item) => String(item.id || item._id) === String(id)
+    );
+    if (selectedData) {
+      setSelectedInvoiceData(selectedData);
+      setShowInvoiceModal(true);
+    }
   };
 
   return (
@@ -625,6 +637,33 @@ const TpPass = () => {
           setCurrentPage(1);
         }}
       />
+
+      {/* Invoice Modal */}
+      {showInvoiceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl w-full max-w-6xl p-6 relative shadow-lg">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowInvoiceModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold"
+            >
+              &times;
+            </button>
+
+            {/* Modal Title */}
+            <h2 className="text-xl font-semibold mb-4">Invoice Bill</h2>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto max-h-[70vh]">
+              {selectedInvoiceData ? (
+                <InvoiceBill invoiceData={selectedInvoiceData} />
+              ) : (
+                <p className="text-gray-500">No invoice data available.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
