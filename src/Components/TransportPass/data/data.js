@@ -51,6 +51,7 @@ export const fetchTpPassData = async () => {
             transporterRate: tpPass.transporterRate || "Unknown",
             totalTransporterAmount: tpPass.totalTransporterAmount || "Unknown",
             transporterRate: tpPass.transporterRate || "Unknown",
+            transporterRateOn: tpPass.transporterRateOn || "Unknown",
             customerRateOn: tpPass.customerRateOn || "Unknown",
             customerRate: tpPass.customerRate || "Unkonwn",
             customerFreight: tpPass.customerFreight || "Unknown",

@@ -499,6 +499,13 @@ const TpPass = () => {
       placeholder: "Enter customer rate",
       section: "Freight Details",
     },
+    {
+      name: "customerRateOn",
+      label: "Customer Rate",
+      type: "number",
+      placeholder: "Enter customer rate",
+      section: "Freight Details",
+    },
 
     {
       name: "customerFreight",
@@ -524,6 +531,13 @@ const TpPass = () => {
     },
     {
       name: "transporterRate",
+      label: "Transporter Rate",
+      type: "number",
+      placeholder: "Enter transporter rate",
+      section: "Freight Details",
+    },
+    {
+      name: "transporterRateOn",
       label: "Transporter Rate",
       type: "number",
       placeholder: "Enter transporter rate",
