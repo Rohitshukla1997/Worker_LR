@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Select from "react-select";
+import CreatableSelect from "react-select/creatable";
 
 const LorryForm = ({
   show,
@@ -30,7 +31,17 @@ const LorryForm = ({
         }, {});
         setFormData(prefilledData);
       } else {
-        setFormData(initialFormState);
+        const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+        const newFormState = { ...initialFormState };
+
+        // Pre-select today's date if the field is "date"
+        fields.forEach((field) => {
+          if (field.type === "date") {
+            newFormState[field.name] = today;
+          }
+        });
+
+        setFormData(newFormState);
       }
     }
   }, [show, initialData]);
@@ -80,7 +91,8 @@ const LorryForm = ({
     const cleanedData = { ...formData };
     fields.forEach((field) => {
       if (field.type === "select") {
-        cleanedData[field.name] = formData[field.name]?.value || "";
+        cleanedData[field.name] =
+          formData[field.name]?.value || formData[field.name] || "";
       } else if (field.type === "multiselect") {
         cleanedData[field.name] =
           formData[field.name]?.map((item) => item.value) || [];
@@ -131,17 +143,31 @@ const LorryForm = ({
                     </label>
                     {field.type === "select" || field.type === "multiselect" ? (
                       <>
-                        <Select
-                          isMulti={field.type === "multiselect"}
-                          options={field.options || []}
-                          value={formData[field.name]}
-                          onChange={(selected) =>
-                            handleSelectChange(selected, field.name)
-                          }
-                          isClearable={field.type === "select"}
-                          className="react-select-container"
-                          classNamePrefix="react-select"
-                        />
+                        {field.creatable ? (
+                          <CreatableSelect
+                            isMulti={field.type === "multiselect"}
+                            options={field.options || []}
+                            value={formData[field.name]}
+                            onChange={(selected) =>
+                              handleSelectChange(selected, field.name)
+                            }
+                            isClearable={field.type === "select"}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        ) : (
+                          <Select
+                            isMulti={field.type === "multiselect"}
+                            options={field.options || []}
+                            value={formData[field.name]}
+                            onChange={(selected) =>
+                              handleSelectChange(selected, field.name)
+                            }
+                            isClearable={field.type === "select"}
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                          />
+                        )}
                         {errors[field.name] && (
                           <p className="mt-1 text-sm text-red-500">
                             {errors[field.name]}

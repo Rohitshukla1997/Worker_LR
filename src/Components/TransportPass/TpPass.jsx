@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Table from "../ReusableComponents/Table";
 import SmartPagination from "../ReusableComponents/SmartPagination";
@@ -17,9 +17,17 @@ import { toast, ToastContainer } from "react-toastify";
 import LorryForm from "../ReusableComponents/LorryFrom";
 import DateRangeFilterCredence from "../ReusableComponents/DateRangeFilterCredence";
 import InvoiceBill from "./BillComp/InvoiceBill";
+import IconDropdown from "../ReusableComponents/IconDropdown";
+import usePdfExporter from "../../customhooks/usePdfExporter";
+import useExcelExporter from "../../customhooks/useExcelExporter";
+import { FaArrowUp, FaPrint, FaRegFilePdf } from "react-icons/fa";
+import { PiMicrosoftExcelLogo } from "react-icons/pi";
+import { HiOutlineLogout } from "react-icons/hi";
 
 const TpPass = () => {
   const queryClient = useQueryClient();
+  const { exportToPDF } = usePdfExporter();
+  const { exportToExcel } = useExcelExporter();
 
   // fetch tp pass
   const {
@@ -278,6 +286,15 @@ const TpPass = () => {
 
   // field data
   const fields = [
+    {
+      name: "date",
+      label: "Date",
+      type: "date",
+      placeholder: "Select date",
+      section: "Tp Pass",
+      required: true,
+    },
+
     // Company Details
     {
       name: "companyName",
@@ -362,21 +379,15 @@ const TpPass = () => {
       placeholder: "Enter lorry number",
       section: "Basic Details",
     },
-    {
-      name: "date",
-      label: "Date",
-      type: "date",
-      placeholder: "Select date",
-      section: "Basic Details",
-      required: true,
-    },
+
     {
       name: "vehicleId",
       label: "Vehicle Name",
       type: "select",
-      placeholder: "Select vehicle",
+      placeholder: "Select or enter vehicle",
       section: "Basic Details",
       required: true,
+      creatable: true,
       options: vehicles.map((v) => ({
         value: v.id,
         label: v.name,
@@ -387,14 +398,16 @@ const TpPass = () => {
       name: "driverId",
       label: "Driver Name",
       type: "select",
-      placeholder: "Select driver",
+      placeholder: "Select or enter driver",
       section: "Basic Details",
       required: true,
+      creatable: true,
       options: drivers.map((d) => ({
         value: d.id,
         label: d.name,
       })),
     },
+
     {
       name: "ownerName",
       label: "Owner Name",
@@ -575,6 +588,69 @@ const TpPass = () => {
     }
   };
 
+  // Handle Logout
+  const handleLogout = () => {
+    // Clear sessionStorage and localStorage
+    sessionStorage.clear();
+    localStorage.clear();
+
+    // Optional: Clear cookies (will only clear cookies accessible via JavaScript)
+    document.cookie.split(";").forEach((c) => {
+      const base = c.trim().split("=")[0];
+      document.cookie = `${base}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    });
+
+    // Redirect to Credence
+    window.history.replaceState(null, "", "/");
+    // window.location.href = 'http://localhost:3000'
+    window.location.href = import.meta.env.VITE_API_CREDENCE_URL;
+  };
+
+  // Memoized dropdown items for export
+  const dropdownItems = useMemo(
+    () => [
+      {
+        icon: FaRegFilePdf,
+        label: "Download PDF",
+        onClick: () =>
+          exportToPDF({
+            title: "All Worker List Report",
+            columns,
+            data: filteredData,
+            fileName: "Worker_List_Report",
+          }),
+      },
+      {
+        icon: PiMicrosoftExcelLogo,
+        label: "Download Excel",
+        onClick: () => {
+          exportToExcel({
+            title: "All Worker List Report",
+            columns,
+            data: filteredData,
+            fileName: "Worker_List_Report",
+          });
+        },
+      },
+      {
+        icon: FaPrint,
+        label: "Print Page",
+        onClick: () => window.print(),
+      },
+      {
+        icon: HiOutlineLogout,
+        label: "Logout",
+        onClick: () => handleLogout(),
+      },
+      {
+        icon: FaArrowUp,
+        label: "Scroll To Top",
+        onClick: () => window.scrollTo({ top: 0, behavior: "smooth" }),
+      },
+    ],
+    [filteredData, columns, exportToPDF, exportToExcel]
+  );
+
   return (
     <div>
       <ToastContainer />
@@ -635,10 +711,12 @@ const TpPass = () => {
         isFetching={isFetching}
         viewButton={true}
         handleViewButton={handleViewButton}
-        editButton={true}
-        handleEditButton={handleEditButton}
-        deleteButton={true}
-        handleDeleteButton={handleDeleteButton}
+        viewButtonLabel="Invoice"
+
+        // editButton={true}
+        // handleEditButton={handleEditButton}
+        // deleteButton={true}
+        // handleDeleteButton={handleDeleteButton}
       />
 
       {/* Pagination */}
@@ -679,6 +757,11 @@ const TpPass = () => {
           </div>
         </div>
       )}
+
+      {/* dpdf and excel */}
+      <div className="fixed bottom-0 right-0 m-3 mb-1 z-50">
+        <IconDropdown items={dropdownItems} />
+      </div>
     </div>
   );
 };
