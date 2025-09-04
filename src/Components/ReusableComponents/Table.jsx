@@ -46,7 +46,7 @@ function Table({
   viewButton,
   viewButtonLabel = "View",
   viewButtonIcon = <Eye size={16} />,
-  viewButtonColor = "rgb(10, 45, 99)",
+  viewButtonColor = "linear-gradient(to right, #504255, #cbb4d4)",
   handleViewButton,
   editButton,
   handleEditButton,
@@ -260,7 +260,7 @@ function Table({
                               disabled={viewLoadingId === row.id}
                               className="flex items-center gap-2 px-3 py-1 rounded text-white"
                               style={{
-                                backgroundColor: viewButtonColor,
+                                background: viewButtonColor,
                                 opacity: viewLoadingId === row.id ? 0.6 : 1,
                               }}
                             >
