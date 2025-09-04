@@ -13,14 +13,7 @@ const DashboardLayout = ({ user, onLogout }) => {
             <img src={Logo} alt="Logo" className="h-10 w-auto" />
           </div>
 
-          <ProfileSection
-            name={user?.name || "Guest"}
-            role={user?.role || "Admin"}
-            image={user?.image}
-            onProfileClick={() => alert("Profile clicked")}
-            onNotificationClick={() => alert("Notifications clicked")}
-            onLogout={onLogout}
-          />
+          <ProfileSection name={user?.name || "Guest"} onLogout={onLogout} />
         </div>
 
         {/* Navigation */}

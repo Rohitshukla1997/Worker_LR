@@ -19,7 +19,9 @@ const ProfileCard = () => {
           <div className="absolute left-1/2 -bottom-12 transform -translate-x-1/2">
             <img
               className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
-              src="https://randomuser.me/api/portraits/women/45.jpg"
+              src={`https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(
+                data.name
+              )}`}
               alt="profile"
             />
           </div>
