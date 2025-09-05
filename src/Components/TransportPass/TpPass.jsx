@@ -609,17 +609,17 @@ const TpPass = () => {
   // Memoized dropdown items for export
   const dropdownItems = useMemo(
     () => [
-      {
-        icon: FaRegFilePdf,
-        label: "Download PDF",
-        onClick: () =>
-          exportToPDF({
-            title: "All Worker List Report",
-            columns,
-            data: filteredData,
-            fileName: "Worker_List_Report",
-          }),
-      },
+      // {
+      //   icon: FaRegFilePdf,
+      //   label: "Download PDF",
+      //   onClick: () =>
+      //     exportToPDF({
+      //       title: "All Worker List Report",
+      //       columns,
+      //       data: filteredData,
+      //       fileName: "Worker_List_Report",
+      //     }),
+      // },
       {
         icon: PiMicrosoftExcelLogo,
         label: "Download Excel",
