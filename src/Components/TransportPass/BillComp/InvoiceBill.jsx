@@ -1,12 +1,10 @@
 import React, { useRef } from "react";
 import html2pdf from "html2pdf.js";
 import "./InvoiceBill.css";
-import logo from "../../../assets/brand/fmslog.png";
 
 const InvoiceBill = ({ invoiceData }) => {
   const invoiceRef = useRef();
 
-  // Default empty object if invoiceData is undefined or null
   const {
     companyName,
     companyAddress,
@@ -34,20 +32,14 @@ const InvoiceBill = ({ invoiceData }) => {
     itemWeight,
     itemcost,
     customerRate,
-    totalAmount,
+    customerFreight,
     transporterRate,
     totalTransporterAmount,
     transporterRateOn,
     customerRateOn,
-    customerFreight,
     transporterFreight,
-    driverId,
     driverName,
-    driverContact,
   } = invoiceData || {};
-
-  // const driverName = driverId?.name || 'N/A'
-  // const driverContact = driverId?.contactNumber || 'N/A'
 
   const handleDownloadPDF = () => {
     const element = invoiceRef.current.cloneNode(true);
@@ -56,14 +48,6 @@ const InvoiceBill = ({ invoiceData }) => {
 
     element.style.padding = "30px";
     element.style.backgroundColor = "white";
-    element.style.fontFamily = "'Segoe UI', sans-serif";
-
-    const signature = element.querySelector(".signature-section");
-    if (signature) {
-      signature.style.pageBreakInside = "avoid";
-      signature.style.breakInside = "avoid";
-      signature.style.marginTop = "30px";
-    }
 
     const opt = {
       margin: 0,
@@ -80,7 +64,6 @@ const InvoiceBill = ({ invoiceData }) => {
         unit: "mm",
         format: "a4",
         orientation: "portrait",
-        compress: true,
       },
       pagebreak: {
         avoid: [".signature-section"],
@@ -96,18 +79,10 @@ const InvoiceBill = ({ invoiceData }) => {
       <div className="invoice" ref={invoiceRef}>
         {/* Header */}
         <div className="invoice-header">
-          <div className="header-left">
-            <div className="company-logo-name">
-              {/* <img
-                src={logo}
-                alt="Company Logo"
-                className="company-logo"
-                crossOrigin="anonymous"
-              /> */}
-              <div>
-                <h1>{companyName || "N/A"}</h1>
-                <p>{companyAddress || "N/A"}</p>
-              </div>
+          <div className="company-logo-name">
+            <div>
+              <h1>{companyName || "Company Name"}</h1>
+              <p>{companyAddress || "Company Address"}</p>
             </div>
           </div>
           <div className="header-right">
@@ -231,7 +206,7 @@ const InvoiceBill = ({ invoiceData }) => {
             </div>
             <div className="details-row">
               <p>
-                <strong>Customer Rate On:</strong> ₹{customerRate || 0}
+                <strong>Customer Rate On:</strong> {customerRateOn || "N/A"}
               </p>
               <p>
                 <strong>Customer Rate:</strong> ₹{customerRate || 0}
@@ -248,15 +223,13 @@ const InvoiceBill = ({ invoiceData }) => {
             <h3>Transporter Details</h3>
             <div className="details-row">
               <p>
-                <strong>Driver Name:</strong> {driverName}
+                <strong>Driver Name:</strong> {driverName || "N/A"}
               </p>
-              {/* <p>
-                <strong>Contact:</strong> {driverContact}
-              </p> */}
             </div>
             <div className="details-row">
               <p>
-                <strong>Transporter Rate On:</strong> ₹{transporterRateOn || 0}
+                <strong>Transporter Rate On:</strong>{" "}
+                {transporterRateOn || "N/A"}
               </p>
               <p>
                 <strong>Transporter Rate:</strong> ₹{transporterRate || 0}
@@ -275,7 +248,7 @@ const InvoiceBill = ({ invoiceData }) => {
           </div>
         </div>
 
-        {/* T&C and Signature */}
+        {/* Terms & Signature */}
         <div className="invoice-page">
           <h3>Terms & Conditions</h3>
           <ul>
@@ -296,12 +269,13 @@ const InvoiceBill = ({ invoiceData }) => {
             <p>
               <strong>Authorized Signatory (Transporter):</strong> ____________
             </p>
-            <p>Consignor: ____________ Consignee: ____________</p>
+            <p>Consignor: ____________</p>
+            <p>Consignee: ____________</p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="invoice-footer text-center">
+        <div className="invoice-footer">
           <p className="stamp">[Transport Company Stamp]</p>
           <button className="download-btn" onClick={handleDownloadPDF}>
             Download PDF
