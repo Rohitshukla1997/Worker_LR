@@ -17,12 +17,13 @@ export const fetchTpPassData = async () => {
             supervisorName: tpPass.supervisorName || "Supervisor",
             workerName: tpPass?.workerId?.name || "No Worker Found",
             workerId: tpPass?.workerId?._id || "No Worker Found",
-            companyName: tpPass.companyName || "Unknown",
-            companyAddress: tpPass.companyAddress || "Unknown",
-            companyEmail: tpPass.companyEmail || "Unknown",
-            gstIn: tpPass.gstIn || "Unknown",
-            companyOfficeNumber: tpPass.companyOfficeNumber || "Unknown",
-            companyMobileNumber: tpPass.companyMobileNumber || "Unknown",
+            companyId: tpPass.companyId?.id || "No Worker Found",
+            companyName: tpPass.companyId?.companyName || "Unknown",
+            companyAddress: tpPass.companyId?.address || "Unknown",
+            companyEmail: tpPass.companyId?.email || "Unknown",
+            gstIn: tpPass.companyId?.gstNumber || "Unknown",
+            companyOfficeNumber: tpPass.companyId?.mobileNumber || "Unknown",
+            companyMobileNumber: tpPass.companyId?.officeNumber || "Unknown",
             lorryNumber: tpPass.lorryNumber || "Unknown",
             vehicleName: tpPass.vehicleName || "Unknown",
             vehicleId: tpPass.vehicleId || "Unknown",
@@ -35,7 +36,7 @@ export const fetchTpPassData = async () => {
             customerAddress: tpPass.customerAddress || "Unknown",
             startLocation: tpPass.from || tpPass.startLocation || "Unknown",
             endLocation: tpPass.to || tpPass.endLocation || "Unknown",
-            driverName: tpPass.driverId?.name || "N/A",
+            driverName: tpPass.driverName || "N/A",
             driverId: tpPass.driverId?._id || "N/A",
             supervisor: tpPass.driverId?.supervisor || "N/A",
             driverContact: tpPass.driverId?.contactNumber || "N/A",
@@ -187,5 +188,36 @@ export const DriverApi = async () => {
 };
 
 console.log("driver api", DriverApi())
+
+
+// Company name get api
+
+export const getCompanyNameApi = async () => {
+    try {
+        const response = await api.get(
+            `${import.meta.env.VITE_API_URL}/api/company/get-all`
+        );
+
+        console.log("All Company Data:", response.data);
+
+        const rawData = response ?? [];
+
+        const formattedData = rawData.map((company) => ({
+            id: company._id,
+            companyName: company.companyName || "Unknown",
+            email: company.email || "Unknown",
+            mobileNumber: company.mobileNumber || "Unknown",
+            officeNumber: company.officeNumber || "Unknown",
+            address: company.address || "Unknown",
+            gstNumber: company.gstNumber || "Unknown",
+            supervisor: company.supervisorId || "Unknown",
+        }));
+
+        return formattedData;
+    } catch (error) {
+        console.error("Error fetching companies:", error);
+        return [];
+    }
+};
 
 

@@ -9,6 +9,7 @@ import {
   deleteLorryReciptApi,
   VehicleApi,
   DriverApi,
+  getCompanyNameApi,
 } from "./data/data";
 import AddButton from "../ReusableComponents/AddButton";
 import SearchInput from "../ReusableComponents/SearchInput";
@@ -49,6 +50,12 @@ const TpPass = () => {
   const { data: drivers = [] } = useQuery({
     queryKey: ["drivers"],
     queryFn: DriverApi,
+  });
+
+  // Company
+  const { data: companys = [] } = useQuery({
+    queryKey: ["companys"],
+    queryFn: getCompanyNameApi,
   });
 
   const [filteredData, setFilteredData] = useState([]);
@@ -157,22 +164,55 @@ const TpPass = () => {
   }, [tpPass, searchQuery, dateRange]);
 
   //  handle add/edit form submission
-  const handleFormSubmit = (formData) => {
-    // Find selected vehicle name from vehicleId
-    const selectedVehicle = vehicles.find(
-      (v) => v.id === (formData.vehicleId?.value || formData.vehicleId)
-    );
 
-    const selectedDriver = drivers.find(
-      (d) => d.id === (formData.driverId?.value || formData.driverId)
-    );
+  const handleFormSubmit = (formData) => {
+    let vehicleName = "";
+    let driverName = "";
+
+    // Vehicle
+    if (typeof formData.vehicleId === "object") {
+      const selectedVehicle = vehicles.find(
+        (v) => v.id === formData.vehicleId.value
+      );
+      vehicleName = selectedVehicle?.name || formData.vehicleId.label;
+    } else {
+      // manually typed
+      const selectedVehicle = vehicles.find((v) => v.id === formData.vehicleId);
+      vehicleName = selectedVehicle?.name || formData.vehicleId || "";
+    }
+
+    // Driver
+    if (typeof formData.driverId === "object") {
+      const selectedDriver = drivers.find(
+        (d) => d.id === formData.driverId.value
+      );
+      driverName = selectedDriver?.name || formData.driverId.label;
+    } else {
+      // manually typed
+      const selectedDriver = drivers.find((d) => d.id === formData.driverId);
+      driverName = selectedDriver?.name || formData.driverId || "";
+    }
+
+    // Company
+    let companyName = "";
+    if (typeof formData.companyId === "object") {
+      const selectedCompany = companys.find(
+        (c) => c.id === formData.companyId.value
+      );
+      companyName = selectedCompany?.name || formData.companyId.label;
+    } else {
+      const selectedCompany = companys.find((c) => c.id === formData.companyId);
+      companyName = selectedCompany?.name || formData.companyId || "";
+    }
 
     const payload = {
       ...formData,
       vehicleId: formData.vehicleId?.value || formData.vehicleId || "",
-      vehicleName: selectedVehicle?.name || "", // add vehicleName
       driverId: formData.driverId?.value || formData.driverId || "",
-      driverName: selectedDriver?.name || "", // add driverName if needed
+      companyId: formData.companyId?.value || formData.companyId || "",
+      vehicleName,
+      driverName,
+      companyName,
     };
 
     console.log("Payload to send:", payload);
@@ -251,6 +291,7 @@ const TpPass = () => {
     { label: "Office Number", key: "companyOfficeNumber", sortable: true },
     { label: "Mobile Number", key: "companyMobileNumber", sortable: true },
     { label: "Lorry Receipt No.", key: "lorryNumber", sortable: true },
+    { label: "Driver Name", key: "driverName", sortable: true },
     { label: "Vehicle Name", key: "vehicleName", sortable: true },
     { label: "Owner Name", key: "ownerName", sortable: true },
     { label: "Consignor Name", key: "consignorName", sortable: true },
@@ -261,8 +302,7 @@ const TpPass = () => {
     { label: "Customer Address", key: "customerAddress", sortable: true },
     { label: "Start Location", key: "startLocation", sortable: true },
     { label: "End Location", key: "endLocation", sortable: true },
-    { label: "Driver Name", key: "driverName", sortable: true },
-    { label: "Driver Contact", key: "driverContact", sortable: true },
+    // { label: "Driver Contact", key: "driverContact", sortable: true },
     { label: "Container Number", key: "containerNumber", sortable: true },
     { label: "Seal Number", key: "sealNumber", sortable: true },
     { label: "Item Name", key: "itemName", sortable: true },
@@ -297,46 +337,16 @@ const TpPass = () => {
 
     // Company Details
     {
-      name: "companyName",
+      name: "companyId",
       label: "Company Name",
-      type: "text",
-      placeholder: "Enter company name",
+      type: "select",
+      placeholder: "Select company",
       section: "Company Details",
-    },
-    {
-      name: "companyAddress",
-      label: "Company Address",
-      type: "text",
-      placeholder: "Enter company address",
-      section: "Company Details",
-    },
-    {
-      name: "gstIn",
-      label: "GST IN",
-      type: "text",
-      placeholder: "Enter GST IN",
-      section: "Company Details",
-    },
-    {
-      name: "companyEmail",
-      label: "Company Email",
-      type: "email",
-      placeholder: "Enter company email",
-      section: "Company Details",
-    },
-    {
-      name: "companyMobileNumber",
-      label: "Company Mobile Number",
-      type: "text",
-      placeholder: "Enter mobile number",
-      section: "Company Details",
-    },
-    {
-      name: "companyOfficeNumber",
-      label: "Company Office Number",
-      type: "text",
-      placeholder: "Enter office number",
-      section: "Company Details",
+      required: true,
+      options: companys.map((c) => ({
+        value: c.id || c._id,
+        label: c.name || c.companyName,
+      })),
     },
 
     // Consignor Details

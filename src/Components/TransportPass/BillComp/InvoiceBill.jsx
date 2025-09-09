@@ -248,11 +248,11 @@ const InvoiceBill = ({ invoiceData }) => {
             <h3>Transporter Details</h3>
             <div className="details-row">
               <p>
-                <strong>Driver:</strong> {driverName}
+                <strong>Driver Name:</strong> {driverName}
               </p>
-              <p>
+              {/* <p>
                 <strong>Contact:</strong> {driverContact}
-              </p>
+              </p> */}
             </div>
             <div className="details-row">
               <p>
