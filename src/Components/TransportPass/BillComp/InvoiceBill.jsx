@@ -98,12 +98,12 @@ const InvoiceBill = ({ invoiceData }) => {
         <div className="invoice-header">
           <div className="header-left">
             <div className="company-logo-name">
-              <img
+              {/* <img
                 src={logo}
                 alt="Company Logo"
                 className="company-logo"
                 crossOrigin="anonymous"
-              />
+              /> */}
               <div>
                 <h1>{companyName || "N/A"}</h1>
                 <p>{companyAddress || "N/A"}</p>
