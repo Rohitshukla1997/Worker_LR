@@ -1,9 +1,17 @@
 // src/components/Profile.jsx
 import React, { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { EmpyoleeProfileApi } from "./data";
 
 const Profile = ({ name, onLogout }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Fetch profile data
+  const { data: profile } = useQuery({
+    queryKey: ["profile"],
+    queryFn: EmpyoleeProfileApi,
+  });
 
   const toggleDropdown = () => setOpen(!open);
 
@@ -34,11 +42,14 @@ const Profile = ({ name, onLogout }) => {
         className="flex items-center focus:outline-none"
       >
         <img
-          src={`https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(
-            name
-          )}`}
+          src={
+            profile?.profileImage ||
+            `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(
+              profile?.name || name || "User"
+            )}`
+          }
           alt="Profile Avatar"
-          className="w-10 h-10 rounded-full border"
+          className="w-10 h-10 rounded-full border object-cover"
         />
       </button>
 
@@ -46,7 +57,7 @@ const Profile = ({ name, onLogout }) => {
       {open && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-20">
           <div className="px-4 py-2 text-sm text-gray-700 border-b">
-            Profile: {name}
+            Profile: {profile?.name || name}
           </div>
           <button
             onClick={onLogout}
