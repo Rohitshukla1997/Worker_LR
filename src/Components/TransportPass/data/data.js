@@ -24,6 +24,7 @@ export const fetchTpPassData = async () => {
             gstIn: tpPass.companyId?.gstNumber || "N/A",
             companyOfficeNumber: tpPass.companyId?.mobileNumber || "N/A",
             companyMobileNumber: tpPass.companyId?.officeNumber || "N/A",
+            digitalSignatureId: tpPass.companyId?.digitalSignatureId || "N/A",
             lorryNumber: tpPass.lorryNumber || "N/A",
             vehicleName: tpPass.vehicleName || "N/A",
             vehicleId: tpPass.vehicleId || "N/A",
@@ -221,3 +222,22 @@ export const getCompanyNameApi = async () => {
 };
 
 
+// Show Digital signature Images of All Drivers Expenses
+export const getDigitalSignatureApi = async (digitalSignatureId) => {
+    try {
+        const response = await api.get(
+            `${import.meta.env.VITE_API_URL}/api/company/signatureimage/${digitalSignatureId}`
+        );
+
+        console.log("Full API Response:", response);
+        console.log("Response data:", response); // The data is the response itself
+        console.log("Signature image:", response?.signatureImage);
+        console.log("Signature image length:", response?.signatureImage?.length);
+
+        // Return the response directly since it contains the signatureImage
+        return response;
+    } catch (error) {
+        console.error("Error fetching signature:", error.response?.data || error.message);
+        throw error;
+    }
+};

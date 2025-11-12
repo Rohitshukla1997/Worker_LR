@@ -10,6 +10,7 @@ import {
   VehicleApi,
   DriverApi,
   getCompanyNameApi,
+  getDigitalSignatureApi,
 } from "./data/data";
 import AddButton from "../ReusableComponents/AddButton";
 import SearchInput from "../ReusableComponents/SearchInput";
@@ -580,16 +581,69 @@ const TpPass = () => {
   };
 
   // handle view bill button
-  const handleViewButton = (id) => {
-    const selectedData = filteredData.find(
-      (item) => String(item.id || item._id) === String(id)
-    );
-    if (selectedData) {
-      setSelectedInvoiceData(selectedData);
+  const handleViewButton = async (id) => {
+    const selectedData = filteredData.find((item) => item.id === id);
+
+    if (!selectedData) {
+      return toast.error("Data not found for this ID");
+    }
+
+    // Check for digitalSignatureId before calling the API
+    if (
+      !selectedData.digitalSignatureId ||
+      selectedData.digitalSignatureId === "Unknown" ||
+      selectedData.digitalSignatureId === "N/A"
+    ) {
+      console.log("No digitalSignatureId found for this entry:", selectedData);
+      return toast.warn("No bill image available for this entry.");
+    }
+
+    try {
+      console.log(
+        "Fetching Digital Signature for ID:",
+        selectedData.digitalSignatureId
+      );
+      const response = await getDigitalSignatureApi(
+        selectedData.digitalSignatureId
+      );
+
+      console.log("API Response:", response);
+
+      // Access signatureImage directly from the response
+      const base64Image = response?.signatureImage;
+
+      console.log("Base64 image found:", !!base64Image);
+      console.log(
+        "Base64 image preview:",
+        base64Image?.substring(0, 50) + "..."
+      );
+
+      if (!base64Image) {
+        console.log("No base64 image found in response");
+        toast.warn("No signature image found for this entry.");
+        return;
+      }
+
+      // The base64 string already starts with "/9j/" which indicates JPEG
+      // Check if it needs the data URL prefix
+      let digitalSignatureUrl = base64Image;
+      if (!base64Image.startsWith("data:")) {
+        digitalSignatureUrl = `data:image/jpeg;base64,${base64Image}`;
+      }
+
+      // Combine invoice data + signature
+      const invoiceWithSignature = {
+        ...selectedData,
+        digitalSignature: digitalSignatureUrl,
+      };
+
+      setSelectedInvoiceData(invoiceWithSignature);
       setShowInvoiceModal(true);
+    } catch (error) {
+      console.error("Error fetching digital signature:", error);
+      toast.error("Failed to fetch digital signature.");
     }
   };
-
   // Handle Logout
   const handleLogout = () => {
     // Clear sessionStorage and localStorage
