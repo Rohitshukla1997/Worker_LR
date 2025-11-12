@@ -290,7 +290,6 @@ const TpPass = () => {
     { label: "GSTIN", key: "gstIn", sortable: true },
     { label: "Office Number", key: "companyOfficeNumber", sortable: true },
     { label: "Mobile Number", key: "companyMobileNumber", sortable: true },
-    { label: "Lorry Receipt No.", key: "lorryNumber", sortable: true },
     { label: "Driver Name", key: "driverName", sortable: true },
     { label: "Vehicle Name", key: "vehicleName", sortable: true },
     { label: "Owner Name", key: "ownerName", sortable: true },
@@ -382,17 +381,10 @@ const TpPass = () => {
     },
 
     // Basic details
-    {
-      name: "lorryNumber",
-      label: "Lorry Number",
-      type: "text",
-      placeholder: "Enter lorry number",
-      section: "Basic Details",
-    },
 
     {
       name: "vehicleId",
-      label: "Vehicle Name",
+      label: "Vehicle Name (Lorry Number)",
       type: "select",
       placeholder: "Select or enter vehicle",
       section: "Basic Details",
