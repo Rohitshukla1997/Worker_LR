@@ -10,6 +10,10 @@ import Login from "./Components/LoginPage/Login";
 import DashboardLayout from "./Components/Dashboard/Dashboard";
 import ProfileCard from "./Components/SubComponent/ProfileCard";
 import TpPass from "./Components/TransportPass/TpPass";
+import Godown from "./Components/Warehouse Section/Godown/Godown";
+import ProductList from "./Components/Warehouse Section/ProductList/ProductList";
+import Inventory from "./Components/Warehouse Section/Invenotry/Inventory";
+import GodownTP from "./Components/Warehouse Section/GodownTP/GodownTP";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -64,6 +68,12 @@ function App() {
         >
           {/* Default Home (index route) → TpPass */}
           <Route index element={<TpPass />} />
+
+          {/* Add Warehouse Routes Here */}
+          <Route path="warehouse/godown" element={<Godown />} />
+          <Route path="warehouse/product-list" element={<ProductList />} />
+          <Route path="warehouse/inventory" element={<Inventory />} />
+          <Route path="warehouse/godown-tp" element={<GodownTP />} />
 
           {/* About page → ProfileCard */}
           <Route path="profileCard" element={<ProfileCard />} />

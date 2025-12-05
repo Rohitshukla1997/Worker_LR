@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import Logo from "../../assets/brand/fmslogo.svg";
 import ProfileSection from "../SubComponent/ProfileSection";
 
 const DashboardLayout = ({ user, onLogout }) => {
+  const [warehouseOpen, setWarehouseOpen] = useState(false);
+
+  // Close dropdown when clicking any link
+  const closeDropdown = () => setWarehouseOpen(false);
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
       {/* Header */}
@@ -17,7 +22,8 @@ const DashboardLayout = ({ user, onLogout }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex items-center space-x-8 px-6 py-2 bg-black/20 text-sm font-medium">
+        <nav className="flex items-center space-x-8 px-6 py-2 bg-black/20 text-sm font-medium relative">
+          {/* Transport Pass */}
           <NavLink
             to="/dashboard"
             end
@@ -27,9 +33,76 @@ const DashboardLayout = ({ user, onLogout }) => {
                 : "hover:text-yellow-300"
             }
           >
-            Home
+            Transport Pass
           </NavLink>
 
+          {/* Warehouse Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setWarehouseOpen(!warehouseOpen)}
+              className={`flex items-center gap-1 ${
+                warehouseOpen
+                  ? "text-yellow-300 font-semibold"
+                  : "hover:text-yellow-300"
+              }`}
+            >
+              Warehouse Section ▾
+            </button>
+
+            {warehouseOpen && (
+              <div className="absolute left-0 mt-2 bg-white text-black shadow-md rounded-md w-44 py-2 z-50">
+                <NavLink
+                  to="/dashboard/warehouse/godown"
+                  onClick={closeDropdown}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  Godown
+                </NavLink>
+
+                <NavLink
+                  to="/dashboard/warehouse/product-list"
+                  onClick={closeDropdown}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  Product List
+                </NavLink>
+
+                <NavLink
+                  to="/dashboard/warehouse/inventory"
+                  onClick={closeDropdown}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  Inventory
+                </NavLink>
+
+                <NavLink
+                  to="/dashboard/warehouse/godown-tp"
+                  onClick={closeDropdown}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  Godown TP
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          {/* About */}
           <NavLink
             to="/dashboard/profileCard"
             className={({ isActive }) =>
