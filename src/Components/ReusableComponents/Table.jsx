@@ -97,10 +97,10 @@ function Table({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full ">
       <style>{skeletonStyles}</style>
 
-      <div className="bg-white shadow-lg rounded-lg mb-6 border border-gray-300">
+      <div className="bg-white shadow-lg rounded-lg mb-6 border border-gray-300 w-full">
         {/* Title */}
         <div
           className="px-4 py-3 rounded-t-lg text-white font-semibold text-lg"
@@ -110,18 +110,18 @@ function Table({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto table-responsive">
-          <table className="min-w-full border border-gray-300 border-collapse">
+        <div className="overflow-x-auto table-responsive w-full">
+          <table className="w-full border border-gray-300 border-collapse">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-center border border-gray-300">
+                <th className="px-4 py-2 text-center border border-gray-300 min-w-[50px]">
                   SN
                 </th>
                 {columns
                   .filter((col) => !col.hidden)
                   .map((column, idx) => (
                     <th
-                      key={column.key + "-" + idx} // unique
+                      key={column.key + "-" + idx}
                       className="px-4 py-2 text-center cursor-pointer select-none border border-gray-300"
                       onClick={() => column.sortable && handleSort(column.key)}
                     >
@@ -130,7 +130,7 @@ function Table({
                     </th>
                   ))}
                 {(editButton || deleteButton || viewButton) && (
-                  <th className="px-4 py-2 text-center border border-gray-300">
+                  <th className="px-4 py-2 text-center border border-gray-300 min-w-[150px]">
                     {action}
                   </th>
                 )}
@@ -180,7 +180,10 @@ function Table({
                 </tr>
               ) : (
                 currentData.map((row, rowIndex) => (
-                  <tr key={row.id || rowIndex} className="hover:bg-gray-50">
+                  <tr
+                    key={row.id || row._id || rowIndex}
+                    className="hover:bg-gray-50"
+                  >
                     <td className="px-4 py-2 text-center border border-gray-200">
                       {(currentPage - 1) * itemsPerPage + rowIndex + 1}
                     </td>
@@ -188,7 +191,7 @@ function Table({
                       .filter((col) => !col.hidden)
                       .map((column, colIndex) => (
                         <td
-                          key={`${row.id || rowIndex}-${
+                          key={`${row.id || row._id || rowIndex}-${
                             column.key
                           }-${colIndex}`}
                           className="px-4 py-2 text-center border border-gray-200"
@@ -196,26 +199,26 @@ function Table({
                           {column.key === "password" ? (
                             <div className="flex justify-center items-center gap-2">
                               <span>
-                                {visiblePasswordRowId === row.id
+                                {visiblePasswordRowId === row.id || row._id
                                   ? row.password
                                   : "••••••••"}
                               </span>
                               <button
                                 onClick={() =>
                                   setVisiblePasswordRowId(
-                                    visiblePasswordRowId === row.id
+                                    visiblePasswordRowId === row.id || row._id
                                       ? null
-                                      : row.id
+                                      : row.id || row._id
                                   )
                                 }
                                 className="text-gray-500 hover:text-gray-700 p-1 rounded"
                                 title={
-                                  visiblePasswordRowId === row.id
+                                  visiblePasswordRowId === row.id || row._id
                                     ? "Hide password"
                                     : "Show password"
                                 }
                               >
-                                {visiblePasswordRowId === row.id ? (
+                                {visiblePasswordRowId === row.id || row._id ? (
                                   <Eye size={18} />
                                 ) : (
                                   <EyeOff size={18} />
@@ -234,7 +237,9 @@ function Table({
                         <div className="action-buttons">
                           {editButton && (
                             <button
-                              onClick={() => handleEditButton(row.id)}
+                              onClick={() =>
+                                handleEditButton(row.id || row._id)
+                              }
                               className="p-1 rounded hover:bg-gray-100"
                               title="Edit"
                             >
@@ -243,7 +248,9 @@ function Table({
                           )}
                           {deleteButton && (
                             <button
-                              onClick={() => handleDeleteButton(row.id)}
+                              onClick={() =>
+                                handleDeleteButton(row.id || row._id)
+                              }
                               className="p-1 rounded hover:bg-gray-100"
                               title="Delete"
                             >
@@ -253,20 +260,21 @@ function Table({
                           {viewButton && (
                             <button
                               onClick={async () => {
-                                setViewLoadingId(row.id);
-                                await handleViewButton(row.id);
+                                setViewLoadingId(row.id || row._id);
+                                await handleViewButton(row.id || row._id);
                                 setViewLoadingId(null);
                               }}
-                              disabled={viewLoadingId === row.id}
+                              disabled={viewLoadingId === row.id || row._id}
                               className="flex items-center gap-2 px-3 py-1 rounded text-white"
                               style={{
                                 background: viewButtonColor,
-                                opacity: viewLoadingId === row.id ? 0.6 : 1,
+                                opacity:
+                                  viewLoadingId === row.id || row._id ? 0.6 : 1,
                               }}
                             >
                               {viewButtonIcon}
                               <span>
-                                {viewLoadingId === row.id
+                                {viewLoadingId === row.id || row._id
                                   ? "Loading..."
                                   : viewButtonLabel}
                               </span>

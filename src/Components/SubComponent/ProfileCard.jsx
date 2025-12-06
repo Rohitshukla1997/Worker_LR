@@ -7,6 +7,12 @@ const ProfileCard = () => {
   const { data: profile } = useQuery({
     queryKey: ["profile"],
     queryFn: EmpyoleeProfileApi,
+
+    //  Data stays FRESH for 10 minutes (no refetch)
+    staleTime: 10 * 60 * 1000, // 10 minutes
+
+    // Data stays in cache for 10 minutes before being garbage-collected
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 
   return (
