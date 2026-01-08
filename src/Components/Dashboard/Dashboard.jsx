@@ -5,9 +5,24 @@ import ProfileSection from "../SubComponent/ProfileSection";
 
 const DashboardLayout = ({ user, onLogout }) => {
   const [warehouseOpen, setWarehouseOpen] = useState(false);
+  const [goodReciptOpen, setGoodReciptOpen] = useState(false);
 
-  // Close dropdown when clicking any link
-  const closeDropdown = () => setWarehouseOpen(false);
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setWarehouseOpen(false);
+    setGoodReciptOpen(false);
+  };
+
+  // Toggle specific dropdown while closing others
+  const toggleWarehouse = () => {
+    setWarehouseOpen(!warehouseOpen);
+    setGoodReciptOpen(false);
+  };
+
+  const toggleGoodRecipt = () => {
+    setGoodReciptOpen(!goodReciptOpen);
+    setWarehouseOpen(false);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -17,7 +32,6 @@ const DashboardLayout = ({ user, onLogout }) => {
           <div className="flex items-center gap-3">
             <img src={Logo} alt="Logo" className="h-10 w-auto" />
           </div>
-
           <ProfileSection name={user?.name || "Guest"} onLogout={onLogout} />
         </div>
 
@@ -27,6 +41,7 @@ const DashboardLayout = ({ user, onLogout }) => {
           <NavLink
             to="/dashboard"
             end
+            onClick={closeAllDropdowns}
             className={({ isActive }) =>
               isActive
                 ? "text-yellow-300 font-semibold border-b-2 border-yellow-300 pb-1"
@@ -36,10 +51,52 @@ const DashboardLayout = ({ user, onLogout }) => {
             Transport Pass
           </NavLink>
 
+          {/* Good Recipt Dropdown */}
+          <div className="relative">
+            <button
+              onClick={toggleGoodRecipt}
+              className={`flex items-center gap-1 ${
+                goodReciptOpen
+                  ? "text-yellow-300 font-semibold"
+                  : "hover:text-yellow-300"
+              }`}
+            >
+              Good Recipt Section ▾
+            </button>
+
+            {goodReciptOpen && (
+              <div className="absolute left-0 mt-2 bg-white text-black shadow-md rounded-md w-44 py-2 z-50">
+                <NavLink
+                  to="/dashboard/goodrecipts/grbyrail"
+                  onClick={closeAllDropdowns}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  GrByRail
+                </NavLink>
+
+                <NavLink
+                  to="/dashboard/goodrecipts/grbyroad"
+                  onClick={closeAllDropdowns}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  GrByRoad
+                </NavLink>
+              </div>
+            )}
+          </div>
+
           {/* Warehouse Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setWarehouseOpen(!warehouseOpen)}
+              onClick={toggleWarehouse}
               className={`flex items-center gap-1 ${
                 warehouseOpen
                   ? "text-yellow-300 font-semibold"
@@ -53,7 +110,7 @@ const DashboardLayout = ({ user, onLogout }) => {
               <div className="absolute left-0 mt-2 bg-white text-black shadow-md rounded-md w-44 py-2 z-50">
                 <NavLink
                   to="/dashboard/warehouse/godown"
-                  onClick={closeDropdown}
+                  onClick={closeAllDropdowns}
                   className={({ isActive }) =>
                     `block px-4 py-2 hover:bg-gray-100 ${
                       isActive ? "text-yellow-600 font-semibold" : ""
@@ -65,7 +122,7 @@ const DashboardLayout = ({ user, onLogout }) => {
 
                 <NavLink
                   to="/dashboard/warehouse/product-list"
-                  onClick={closeDropdown}
+                  onClick={closeAllDropdowns}
                   className={({ isActive }) =>
                     `block px-4 py-2 hover:bg-gray-100 ${
                       isActive ? "text-yellow-600 font-semibold" : ""
@@ -76,20 +133,8 @@ const DashboardLayout = ({ user, onLogout }) => {
                 </NavLink>
 
                 <NavLink
-                  to="/dashboard/warehouse/inventory"
-                  onClick={closeDropdown}
-                  className={({ isActive }) =>
-                    `block px-4 py-2 hover:bg-gray-100 ${
-                      isActive ? "text-yellow-600 font-semibold" : ""
-                    }`
-                  }
-                >
-                  Inventory
-                </NavLink>
-
-                <NavLink
                   to="/dashboard/warehouse/godown-tp"
-                  onClick={closeDropdown}
+                  onClick={closeAllDropdowns}
                   className={({ isActive }) =>
                     `block px-4 py-2 hover:bg-gray-100 ${
                       isActive ? "text-yellow-600 font-semibold" : ""
@@ -105,6 +150,7 @@ const DashboardLayout = ({ user, onLogout }) => {
           {/* About */}
           <NavLink
             to="/dashboard/profileCard"
+            onClick={closeAllDropdowns}
             className={({ isActive }) =>
               isActive
                 ? "text-yellow-300 font-semibold border-b-2 border-yellow-300 pb-1"
@@ -117,11 +163,13 @@ const DashboardLayout = ({ user, onLogout }) => {
       </header>
 
       {/* Main content */}
-      <main className="flex-1 p-6">
+      <main
+        className="flex-1 p-6"
+        onClick={closeAllDropdowns} // Close dropdowns when clicking on main content
+      >
         <Outlet />
       </main>
     </div>
   );
 };
-
 export default DashboardLayout;

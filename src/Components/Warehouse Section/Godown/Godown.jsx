@@ -4,8 +4,11 @@ import Table from "../../ReusableComponents/Table";
 import SmartPagination from "../../ReusableComponents/SmartPagination";
 import { useQuery } from "@tanstack/react-query";
 import { GetGodownApi } from "../data/data";
+import { useNavigate } from "react-router-dom";
 
 const Godown = () => {
+  const navigate = useNavigate();
+
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,8 +41,13 @@ const Godown = () => {
   const columns = [
     { label: "WareHouse Name", key: "wareHouseName", sortable: true },
     { label: "Location", key: "location", sortable: true },
-    { label: "Capacity Kg", key: "capacityKg", sortable: true },
   ];
+
+  // View handler
+  const handleViewButton = (id) => {
+    // Use the correct path based on your routing configuration
+    navigate(`/dashboard/warehouse/InventoryList/${id}`);
+  };
 
   return (
     <>
@@ -65,6 +73,8 @@ const Godown = () => {
         currentPage={currentPage}
         itemsPerPage={itemsPerPage}
         isFetching={isFetching}
+        viewButton={true}
+        handleViewButton={handleViewButton}
       />
 
       <SmartPagination

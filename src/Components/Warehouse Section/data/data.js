@@ -18,13 +18,55 @@ export const GetGodownApi = async ({ queryKey }) => {
             id: item._id,
             wareHouseName: item.wareHouseName || "Unknown",
             location: item.location || "Unknown",
-            capacityKg: item.capacityKg || 0,
         })),
         total: data.total,
         totalPages: data.totalPages,
         page: data.page,
     };
 };
+
+
+// warehouse profile by id
+
+export const getWarehouseProfileApi = async ({ queryKey }) => {
+    const [_key, { search, page, limit, id }] = queryKey
+
+    const { data } = await api.get(
+        `${import.meta.env.VITE_API_URL}/api/warehouseproduct/get`,
+        {
+            params: {
+                warehouseId: id,
+                search: search || '',
+                page,
+                limit,
+            },
+        }
+    )
+
+    const formattedData = data.flatMap((item) =>
+        item.products.map((product) => ({
+            id: `${item._id}-${product._id}`,
+
+            warehouseId: item.warehouseId?._id,
+            wareHouseName: item.warehouseId?.wareHouseName || 'Unknown',
+            location: item.warehouseId?.location || 'Unknown',
+
+            productId: product.productId?._id,
+            productName: product.productId?.name || 'Unknown',
+            quantityKg: product.quantityKg,
+            bagSizeKg: product.bagSizeKg,
+            totalBags: product.totalBags,
+        }))
+    )
+
+    return {
+        data: formattedData,
+        total: data.totalItems,
+        totalPages: data.totalPages,
+        page: data.page,
+    }
+}
+
 
 // ------------------------------------------------------------------------------------------
 
