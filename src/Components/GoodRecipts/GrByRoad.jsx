@@ -26,31 +26,10 @@ const defaultFormData = {
   products: [{ ...defaultProduct }],
 };
 
-const productFields = [
-  {
-    name: "name",
-    label: "Product Name",
-    type: "text",
-    required: true,
-  },
-  {
-    name: "category",
-    label: "Category",
-    type: "text",
-    required: true,
-  },
-];
-
 const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
   const [formData, setFormData] = useState(defaultFormData);
   const [formErrors, setFormErrors] = useState({});
   const [warehouseSearch, setWarehouseSearch] = useState("");
-  const [showNewProductModal, setShowNewProductModal] = useState(false);
-  const [newProductData, setNewProductData] = useState({
-    name: "",
-    category: "",
-  });
-  const [newProductErrors, setNewProductErrors] = useState({});
   const warehouseSelectRef = useRef(null);
   const productSelectRefs = useRef([]);
 
@@ -106,14 +85,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     e.target.blur();
   };
 
-  const handleNewProductChange = (e) => {
-    const { name, value } = e.target;
-    setNewProductData((prev) => ({ ...prev, [name]: value }));
-    if (newProductErrors[name]) {
-      setNewProductErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
 
@@ -131,34 +102,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
         ...updatedProducts[index],
         [field]: value,
       };
-
-      // Get current values as numbers
-      const bagSizeNum = parseFloat(updatedProducts[index].bagSize) || 0;
-      const totalBagsNum = parseFloat(updatedProducts[index].totalBags) || 0;
-      const quantityMtNum = parseFloat(updatedProducts[index].quantityKg) || 0;
-
-      // Calculate based on the formula: Quantity in MT = (Bag Size × Total Bags) ÷ 1000
-      if (field === "bagSize" || field === "totalBags") {
-        if (bagSizeNum > 0 && totalBagsNum > 0) {
-          const calculatedQuantityMt = (bagSizeNum * totalBagsNum) / 1000;
-          updatedProducts[index] = {
-            ...updatedProducts[index],
-            quantityKg: calculatedQuantityMt.toFixed(3), // Keep 3 decimal places
-          };
-        }
-      }
-      // If user manually enters quantityMt, calculate total bags
-      else if (field === "quantityKg") {
-        if (bagSizeNum > 0 && quantityMtNum > 0) {
-          const calculatedTotalBags = Math.round(
-            (quantityMtNum * 1000) / bagSizeNum
-          );
-          updatedProducts[index] = {
-            ...updatedProducts[index],
-            totalBags: calculatedTotalBags.toString(),
-          };
-        }
-      }
     }
 
     setFormData((prev) => ({ ...prev, products: updatedProducts }));
@@ -179,37 +122,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     }
   };
 
-  const validateNewProduct = () => {
-    const errors = {};
-
-    if (!newProductData.name.trim()) {
-      errors.name = "Product name is required";
-    }
-    if (!newProductData.category.trim()) {
-      errors.category = "Category is required";
-    }
-
-    return errors;
-  };
-
-  const handleAddNewProduct = (e) => {
-    e.preventDefault();
-
-    const errors = validateNewProduct();
-    if (Object.keys(errors).length > 0) {
-      setNewProductErrors(errors);
-      return;
-    }
-
-    // Prepare payload for API
-    const payload = {
-      name: newProductData.name.trim(),
-      category: newProductData.category.trim(),
-    };
-
-    postInvenotry(payload);
-  };
-
   const validateForm = () => {
     const errors = {};
 
@@ -222,16 +134,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     formData.products.forEach((product, index) => {
       if (!product.productId) {
         errors[`productId_${index}`] = `Product selection for product ${
-          index + 1
-        } is required`;
-      }
-      if (!product.bagSize || parseFloat(product.bagSize) <= 0) {
-        errors[`bagSize_${index}`] = `Valid bag size for product ${
-          index + 1
-        } is required`;
-      }
-      if (!product.totalBags || parseInt(product.totalBags) <= 0) {
-        errors[`totalBags_${index}`] = `Valid total bags for product ${
           index + 1
         } is required`;
       }
@@ -309,27 +211,16 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
 
   // Prepare product options for React Select
   const getProductOptions = () => {
-    const productOptions = inventoryList.map((item) => ({
+    return inventoryList.map((item) => ({
       value: item._id,
       label: `${item.productName}${item.category ? ` (${item.category})` : ""}`,
       productName: item.productName,
     }));
-
-    // Add "Create New Product" option at the beginning
-    return [
-      {
-        value: "new-product",
-        label: "+ Create New Product",
-        className: "text-primary font-bold",
-      },
-      ...productOptions,
-    ];
   };
 
   const getProductValue = (productId) => {
     if (!productId) return null;
 
-    // First check inventory list
     const selectedProduct = inventoryList.find(
       (item) => item._id === productId
     );
@@ -366,12 +257,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
       if (formErrors[`productId_${index}`]) {
         setFormErrors((prev) => ({ ...prev, [`productId_${index}`]: "" }));
       }
-      return;
-    }
-
-    // Handle "Create New Product" option
-    if (selected?.value === "new-product") {
-      setShowNewProductModal(true);
       return;
     }
 
@@ -696,14 +581,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                             ? "#3b82f6"
                             : "#f3f4f6",
                         },
-                        fontWeight:
-                          state.data?.value === "new-product"
-                            ? "bold"
-                            : "normal",
-                        color:
-                          state.data?.value === "new-product"
-                            ? "#3b82f6"
-                            : base.color,
                       }),
                       valueContainer: (base) => ({
                         ...base,
@@ -797,8 +674,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                                   menuShouldScrollIntoView={false}
                                   menuShouldBlockScroll={true}
                                   filterOption={(option, inputValue) => {
-                                    if (option.value === "new-product")
-                                      return true;
                                     if (!inputValue) return true;
                                     return option.label
                                       .toLowerCase()
@@ -819,11 +694,10 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                               )}
                             </div>
 
-                            {/* Bag Size */}
+                            {/* Bag Size - Optional */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Bag Size (kg){" "}
-                                <span className="text-red-500">*</span>
+                                Bag Size (kg)
                               </label>
                               <input
                                 type="number"
@@ -840,24 +714,14 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                                 placeholder="e.g., 50"
                                 min="0.01"
                                 step="0.01"
-                                className={`w-full border ${
-                                  formErrors[`bagSize_${index}`]
-                                    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                                    : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                                } text-gray-900 text-sm rounded-lg p-2.5`}
+                                className="w-full border border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm rounded-lg p-2.5"
                               />
-                              {formErrors[`bagSize_${index}`] && (
-                                <div className="text-red-500 text-sm mt-1">
-                                  {formErrors[`bagSize_${index}`]}
-                                </div>
-                              )}
                             </div>
 
-                            {/* Total Bags */}
+                            {/* Total Bags - Optional */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Total Bags{" "}
-                                <span className="text-red-500">*</span>
+                                Total Bags
                               </label>
                               <input
                                 type="number"
@@ -874,20 +738,11 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                                 placeholder="e.g., 100"
                                 min="1"
                                 step="1"
-                                className={`w-full border ${
-                                  formErrors[`totalBags_${index}`]
-                                    ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                                    : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                                } text-gray-900 text-sm rounded-lg p-2.5`}
+                                className="w-full border border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-gray-900 text-sm rounded-lg p-2.5"
                               />
-                              {formErrors[`totalBags_${index}`] && (
-                                <div className="text-red-500 text-sm mt-1">
-                                  {formErrors[`totalBags_${index}`]}
-                                </div>
-                              )}
                             </div>
 
-                            {/* Quantity */}
+                            {/* Quantity - Required */}
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Quantity (MT){" "}
@@ -906,12 +761,13 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                                 onWheel={handleWheel}
                                 disabled={isSubmitting}
                                 placeholder="e.g., 5"
+                                min="0.001"
+                                step="0.001"
                                 className={`w-full border ${
                                   formErrors[`quantityKg_${index}`]
                                     ? "border-red-500 focus:ring-red-500 focus:border-red-500"
                                     : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                                } bg-gray-50 text-gray-900 text-sm rounded-lg p-2.5`}
-                                readOnly
+                                } text-gray-900 text-sm rounded-lg p-2.5`}
                               />
                               {formErrors[`quantityKg_${index}`] && (
                                 <div className="text-red-500 text-sm mt-1">
@@ -965,107 +821,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
           </form>
         </div>
       </div>
-
-      {/* New Product Modal */}
-      {showNewProductModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            {/* Background overlay */}
-            <div
-              className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"
-              onClick={() => !isAddingProduct && setShowNewProductModal(false)}
-            />
-
-            {/* Modal panel */}
-            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              {/* Modal header */}
-              <div className="bg-blue-600 text-white px-6 py-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Add New Product</h3>
-                  {!isAddingProduct && (
-                    <button
-                      onClick={() => setShowNewProductModal(false)}
-                      className="text-white hover:text-gray-200 focus:outline-none"
-                    >
-                      <FaTimes className="h-5 w-5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Modal content */}
-              <form onSubmit={handleAddNewProduct}>
-                <div className="bg-white px-6 pt-5 pb-4">
-                  <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
-                    <div className="flex items-center">
-                      <FaInfoCircle className="mr-2" />
-                      Add a new product to the inventory. This product will be
-                      available for selection in all forms.
-                    </div>
-                  </div>
-
-                  {productFields.map((field) => (
-                    <div key={field.name} className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {field.label}{" "}
-                        {field.required && (
-                          <span className="text-red-500">*</span>
-                        )}
-                      </label>
-                      <input
-                        type={field.type}
-                        name={field.name}
-                        value={newProductData[field.name] || ""}
-                        onChange={handleNewProductChange}
-                        disabled={isAddingProduct}
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                        className={`w-full border ${
-                          newProductErrors[field.name]
-                            ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                            : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
-                        } text-gray-900 text-sm rounded-lg p-2.5`}
-                      />
-                      {newProductErrors[field.name] && (
-                        <div className="text-red-500 text-sm mt-1">
-                          {newProductErrors[field.name]}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Modal footer */}
-                <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors duration-200"
-                    onClick={() => setShowNewProductModal(false)}
-                    disabled={isAddingProduct}
-                  >
-                    <FaTimes className="inline mr-1" /> Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={isAddingProduct}
-                  >
-                    {isAddingProduct ? (
-                      <>
-                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <FaPlus className="mr-2" /> Add Product
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

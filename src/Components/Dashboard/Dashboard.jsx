@@ -121,6 +121,18 @@ const DashboardLayout = ({ user, onLogout }) => {
                 </NavLink>
 
                 <NavLink
+                  to="/dashboard/warehouse/railheadinventory"
+                  onClick={closeAllDropdowns}
+                  className={({ isActive }) =>
+                    `block px-4 py-2 hover:bg-gray-100 ${
+                      isActive ? "text-yellow-600 font-semibold" : ""
+                    }`
+                  }
+                >
+                  Railhead Inventory
+                </NavLink>
+
+                <NavLink
                   to="/dashboard/warehouse/product-list"
                   onClick={closeAllDropdowns}
                   className={({ isActive }) =>

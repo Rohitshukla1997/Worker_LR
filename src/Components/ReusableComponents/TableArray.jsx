@@ -158,7 +158,7 @@ function TableArray({
                   Warehouse
                 </th>
                 <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
-                  Quantity (Kg)
+                  Quantity (MT)
                 </th>
                 <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
                   Bags
@@ -181,7 +181,7 @@ function TableArray({
                     {product.warehouseName}
                   </td>
                   <td className="px-4 py-3 border border-gray-200">
-                    {product.quantityKg}
+                    {product.quantityMT}
                   </td>
                   <td className="px-4 py-3 border border-gray-200">
                     {product.bags}

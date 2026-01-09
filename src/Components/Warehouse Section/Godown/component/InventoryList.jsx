@@ -42,9 +42,7 @@ const InventoryList = () => {
 
   const columns = [
     { label: "Product Name", key: "productName", sortable: true },
-    { label: "Quantity (Kg)", key: "quantityKg", sortable: true },
-    { label: "Bag Size (Kg)", key: "bagSizeKg", sortable: true },
-    { label: "Total Bags", key: "totalBags", sortable: true },
+    { label: "Quantity (MT)", key: "quantityMT", sortable: true },
   ];
 
   return (

@@ -53,9 +53,8 @@ export const getWarehouseProfileApi = async ({ queryKey }) => {
 
             productId: product.productId?._id,
             productName: product.productId?.name || 'Unknown',
-            quantityKg: product.quantityKg,
-            bagSizeKg: product.bagSizeKg,
-            totalBags: product.totalBags,
+            quantityMT: product.quantityMT,
+
         }))
     )
 
@@ -225,7 +224,7 @@ export const getGodownTPApi = async ({ queryKey }) => {
             warehouseName: p.warehouseName,
             productId: p.productId,
             productName: p.productName,
-            quantityKg: p.quantityKg,
+            quantityMT: p.quantityMT,
             bags: p.bags,
             itemUnit: p.itemUnit,
             itemWeight: p.itemWeight,
@@ -276,4 +275,52 @@ export const postGodownTPApi = async (create) => {
         throw new Error(error.response?.data?.message || "Failed to create Inventory");
     }
 };
+
+// -------------------------------------------------------------------------------------------------------------- 
+
+// Railhead inventory 
+
+// Railhead Get Api 
+
+export const getRailHeadApi = async ({ queryKey }) => {
+    const [_key, { search, page, limit }] = queryKey
+
+
+    const response = await api.get(
+        `${import.meta.env.VITE_API_URL}/api/railhead/get`,
+        {
+            params: {
+                search: search || '',
+                page,
+                limit,
+            },
+        }
+    )
+
+    // Check if response.data exists and has the expected structure
+    if (!response.data) {
+        throw new Error('No data received from API')
+    }
+
+    const apiData = response.data
+
+    // Transform the data items
+    const transformedData = Array.isArray(apiData)
+        ? apiData.map((item) => ({
+            id: item._id,
+            createdAt: formatDateToDDMMYYYY(item.createdAt) || "--",
+            productId: item.productId || "",
+            productName: item.productName || 'Unknown',
+            quantityMT: item.quantityMT || 0,
+
+        }))
+        : []
+
+    return {
+        data: transformedData,
+        total: apiData.totalItems || apiData.total || 0,
+        totalPages: apiData.totalPages || 1,
+        page: apiData.page || 1,
+    }
+}
 

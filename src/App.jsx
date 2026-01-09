@@ -17,6 +17,7 @@ import GodownTP from "./Components/Warehouse Section/GodownTP/GodownTP";
 import GrByRail from "./Components/GoodRecipts/GrByRail";
 import GrByRoad from "./Components/GoodRecipts/GrByRoad";
 import InventoryList from "./Components/Warehouse Section/Godown/component/InventoryList";
+import RailheadIventory from "./Components/Warehouse Section/RailheadInventory/RailheadInventory";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -74,6 +75,11 @@ function App() {
 
           {/* Add Warehouse Routes Here */}
           <Route path="warehouse/godown" element={<Godown />} />
+          <Route
+            path="warehouse/railheadinventory"
+            element={<RailheadIventory />}
+          />
+
           <Route
             path="warehouse/InventoryList/:id"
             element={<InventoryList />}
