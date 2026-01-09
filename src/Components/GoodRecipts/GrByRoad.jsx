@@ -400,7 +400,7 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
 
       <div className="bg-white rounded-lg shadow-sm">
         {/* Header */}
-        <div className="bg-blue-600 text-white px-6 py-4 rounded-t-lg">
+        <div className="bg-gradient-to-r from-[#504255] to-[#cbb4d4] text-white px-6 py-4 rounded-t-lg">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <h4 className="text-xl font-semibold">GR By Road Form</h4>
@@ -484,7 +484,7 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                   </h5>
                   <button
                     type="button"
-                    className="inline-flex items-center px-4 py-2 border border-blue-600 text-blue-600 text-sm font-medium rounded-md hover:bg-blue-50 transition-colors duration-200"
+                    className="border border-[#504255] text-[#504255] px-4 py-2 rounded-md text-sm font-medium hover:bg-[#cbb4d4] hover:bg-opacity-20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     onClick={addProduct}
                     disabled={isSubmitting || inventoryLoading}
                   >
@@ -797,7 +797,7 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
               <div>
                 <button
                   type="submit"
-                  className="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-gradient-to-r from-[#504255] to-[#cbb4d4] text-white px-8 py-3 rounded-md font-medium hover:from-[#46384d] hover:to-[#b9a2c9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   disabled={
                     isSubmitting ||
                     inventoryLoading ||
