@@ -18,7 +18,6 @@ import {
   FaWarehouse,
   FaWeight,
   FaRupeeSign,
-  FaUserPlus,
   FaTimes,
   FaPlus,
   FaTrash,
@@ -157,8 +156,6 @@ const WarehouseToPartyForm = ({
   const [isCustomVehicle, setIsCustomVehicle] = useState(false);
   const [isCustomDriver, setIsCustomDriver] = useState(false);
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
-  const [showConsignorModal, setShowConsignorModal] = useState(false);
-  const [showConsigneeModal, setShowConsigneeModal] = useState(false);
 
   // Search states
   const [consignorSearchInput, setConsignorSearchInput] = useState("");
@@ -552,7 +549,7 @@ const WarehouseToPartyForm = ({
 
   // Handle consignor selection
   const handleConsignorChange = (selected) => {
-    if (selected && selected.value !== "create-new") {
+    if (selected) {
       setFormData((prev) => ({
         ...prev,
         consignorId: selected.value,
@@ -571,7 +568,7 @@ const WarehouseToPartyForm = ({
 
   // Handle consignee selection
   const handleConsigneeChange = (selected) => {
-    if (selected && selected.value !== "create-new") {
+    if (selected) {
       setFormData((prev) => ({
         ...prev,
         consigneeId: selected.value,
@@ -734,45 +731,20 @@ const WarehouseToPartyForm = ({
     label: c.companyName || c.name || "Unnamed Company",
   }));
 
-  const consignorOptions = [
-    ...consignorData.data.map((consignor) => ({
-      value: consignor.id,
-      label: consignor.name,
-      name: consignor.name,
-      address: consignor.address,
-    })),
-    {
-      value: "create-new",
-      label: (
-        <div className="flex items-center text-blue-600">
-          <FaUserPlus className="mr-2" />
-          Create New Consignor
-        </div>
-      ),
-      name: "",
-      address: "",
-    },
-  ];
+  // UPDATED: Removed "Create New" options from consignor and consignee dropdowns
+  const consignorOptions = consignorData.data.map((consignor) => ({
+    value: consignor.id,
+    label: consignor.name,
+    name: consignor.name,
+    address: consignor.address,
+  }));
 
-  const consigneeOptions = [
-    ...consigneeData.data.map((consignee) => ({
-      value: consignee.id,
-      label: consignee.name,
-      name: consignee.name,
-      address: consignee.address,
-    })),
-    {
-      value: "create-new",
-      label: (
-        <div className="flex items-center text-blue-600">
-          <FaUserPlus className="mr-2" />
-          Create New Consignee
-        </div>
-      ),
-      name: "",
-      address: "",
-    },
-  ];
+  const consigneeOptions = consigneeData.data.map((consignee) => ({
+    value: consignee.id,
+    label: consignee.name,
+    name: consignee.name,
+    address: consignee.address,
+  }));
 
   const vehicleOptions = Array.isArray(vehicles)
     ? vehicles.map((v) => ({
@@ -1240,16 +1212,9 @@ const WarehouseToPartyForm = ({
                     </label>
                     <Select
                       value={getConsignorValue()}
-                      onChange={(selected) => {
-                        if (selected && selected.value === "create-new") {
-                          setShowConsignorModal(true);
-                          handleConsignorChange(null);
-                        } else {
-                          handleConsignorChange(selected);
-                        }
-                      }}
+                      onChange={handleConsignorChange}
                       options={consignorOptions}
-                      placeholder="Select Consignor or Create New"
+                      placeholder="Select Consignor"
                       isClearable
                       isLoading={isFetchingConsignor}
                       onInputChange={handleConsignorInputChange}
@@ -1261,21 +1226,6 @@ const WarehouseToPartyForm = ({
                           : "Type to search consignor"
                       }
                       required
-                      styles={{
-                        option: (provided, state) => ({
-                          ...provided,
-                          backgroundColor:
-                            state.data.value === "create-new"
-                              ? "#f8f9fa"
-                              : provided.backgroundColor,
-                          "&:hover": {
-                            backgroundColor:
-                              state.data.value === "create-new"
-                                ? "#e9ecef"
-                                : "#f8f9fa",
-                          },
-                        }),
-                      }}
                     />
                     {isFetchingConsignor && (
                       <div className="mt-2 flex items-center text-blue-600 text-sm">
@@ -1311,16 +1261,9 @@ const WarehouseToPartyForm = ({
                     </label>
                     <Select
                       value={getConsigneeValue()}
-                      onChange={(selected) => {
-                        if (selected && selected.value === "create-new") {
-                          setShowConsigneeModal(true);
-                          handleConsigneeChange(null);
-                        } else {
-                          handleConsigneeChange(selected);
-                        }
-                      }}
+                      onChange={handleConsigneeChange}
                       options={consigneeOptions}
-                      placeholder="Select Consignee or Create New"
+                      placeholder="Select Consignee"
                       isClearable
                       isLoading={isFetchingConsignee}
                       onInputChange={handleConsigneeInputChange}
@@ -1332,21 +1275,6 @@ const WarehouseToPartyForm = ({
                           : "Type to search consignee"
                       }
                       required
-                      styles={{
-                        option: (provided, state) => ({
-                          ...provided,
-                          backgroundColor:
-                            state.data.value === "create-new"
-                              ? "#f8f9fa"
-                              : provided.backgroundColor,
-                          "&:hover": {
-                            backgroundColor:
-                              state.data.value === "create-new"
-                                ? "#e9ecef"
-                                : "#f8f9fa",
-                          },
-                        }),
-                      }}
                     />
                     {isFetchingConsignee && (
                       <div className="mt-2 flex items-center text-blue-600 text-sm">

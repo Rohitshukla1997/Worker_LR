@@ -259,7 +259,7 @@ const WarehouseForm = ({
   };
 
   const handleConsignorChange = (selected) => {
-    if (selected && selected.value !== "create-new") {
+    if (selected) {
       setFormData((prev) => ({
         ...prev,
         consignorId: selected.value,
@@ -277,7 +277,7 @@ const WarehouseForm = ({
   };
 
   const handleConsigneeChange = (selected) => {
-    if (selected && selected.value !== "create-new") {
+    if (selected) {
       setFormData((prev) => ({
         ...prev,
         consigneeId: selected.value,
@@ -886,45 +886,20 @@ const WarehouseForm = ({
       }))
     : [];
 
-  const consignorOptions = [
-    ...consignorList.map((consignor) => ({
-      value: consignor.id,
-      label: consignor.name,
-      name: consignor.name,
-      address: consignor.address,
-    })),
-    {
-      value: "create-new",
-      label: (
-        <div className="flex items-center text-blue-600">
-          <FaUserPlus className="mr-2" />
-          Create New Consignor
-        </div>
-      ),
-      name: "",
-      address: "",
-    },
-  ];
+  // UPDATED: Removed "Create New" options from consignor and consignee dropdowns
+  const consignorOptions = consignorList.map((consignor) => ({
+    value: consignor.id,
+    label: consignor.name,
+    name: consignor.name,
+    address: consignor.address,
+  }));
 
-  const consigneeOptions = [
-    ...consigneeList.map((consignee) => ({
-      value: consignee.id,
-      label: consignee.name,
-      name: consignee.name,
-      address: consignee.address,
-    })),
-    {
-      value: "create-new",
-      label: (
-        <div className="flex items-center text-blue-600">
-          <FaUserPlus className="mr-2" />
-          Create New Consignee
-        </div>
-      ),
-      name: "",
-      address: "",
-    },
-  ];
+  const consigneeOptions = consigneeList.map((consignee) => ({
+    value: consignee.id,
+    label: consignee.name,
+    name: consignee.name,
+    address: consignee.address,
+  }));
 
   const getWarehouseValue = (product) => {
     if (!product.warehouseId) return null;
@@ -1405,19 +1380,9 @@ const WarehouseForm = ({
                             </label>
                             <Select
                               value={getConsignorValue()}
-                              onChange={(selected) => {
-                                if (
-                                  selected &&
-                                  selected.value === "create-new"
-                                ) {
-                                  setShowConsignorModal(true);
-                                  handleConsignorChange(null);
-                                } else {
-                                  handleConsignorChange(selected);
-                                }
-                              }}
+                              onChange={handleConsignorChange}
                               options={consignorOptions}
-                              placeholder="Select Consignor or Create New"
+                              placeholder="Select Consignor"
                               isClearable
                               isLoading={isLoading || isFetchingConsignor}
                               onInputChange={handleConsignorInputChange}
@@ -1430,21 +1395,6 @@ const WarehouseForm = ({
                                   ? `No consignor found for "${inputValue}"`
                                   : "Type to search consignor"
                               }
-                              styles={{
-                                option: (provided, state) => ({
-                                  ...provided,
-                                  backgroundColor:
-                                    state.data.value === "create-new"
-                                      ? "#f8f9fa"
-                                      : provided.backgroundColor,
-                                  "&:hover": {
-                                    backgroundColor:
-                                      state.data.value === "create-new"
-                                        ? "#e9ecef"
-                                        : "#f8f9fa",
-                                  },
-                                }),
-                              }}
                             />
                             {isFetchingConsignor && (
                               <p className="text-blue-600 text-sm mt-1">
@@ -1479,19 +1429,9 @@ const WarehouseForm = ({
                             </label>
                             <Select
                               value={getConsigneeValue()}
-                              onChange={(selected) => {
-                                if (
-                                  selected &&
-                                  selected.value === "create-new"
-                                ) {
-                                  setShowConsigneeModal(true);
-                                  handleConsigneeChange(null);
-                                } else {
-                                  handleConsigneeChange(selected);
-                                }
-                              }}
+                              onChange={handleConsigneeChange}
                               options={consigneeOptions}
-                              placeholder="Select Consignee or Create New"
+                              placeholder="Select Consignee"
                               isClearable
                               isLoading={isLoading || isFetchingConsignee}
                               onInputChange={handleConsigneeInputChange}
@@ -1504,21 +1444,6 @@ const WarehouseForm = ({
                                   ? `No consignee found for "${inputValue}"`
                                   : "Type to search consignee"
                               }
-                              styles={{
-                                option: (provided, state) => ({
-                                  ...provided,
-                                  backgroundColor:
-                                    state.data.value === "create-new"
-                                      ? "#f8f9fa"
-                                      : provided.backgroundColor,
-                                  "&:hover": {
-                                    backgroundColor:
-                                      state.data.value === "create-new"
-                                        ? "#e9ecef"
-                                        : "#f8f9fa",
-                                  },
-                                }),
-                              }}
                             />
                             {isFetchingConsignee && (
                               <p className="text-blue-600 text-sm mt-1">
