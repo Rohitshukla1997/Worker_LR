@@ -7,7 +7,7 @@ import SingleSelectDropdown from "../../ReusableComponents/SingleSelectDropdown"
 import SearchInput from "../../ReusableComponents/SearchInput";
 import TableArray from "../../ReusableComponents/TableArray";
 import SmartPagination from "../../ReusableComponents/SmartPagination";
-import { FaExchangeAlt, FaEye, FaWarehouse } from "react-icons/fa";
+import { FaExchangeAlt, FaEye, FaWarehouse, FaFilter } from "react-icons/fa";
 // Import the form components
 import WarehouseForm from "./component/WarehouseForm";
 import WarehouseToPartyForm from "./component/WarehouseToPartyForm";
@@ -620,6 +620,26 @@ const GodownLr = () => {
           >
             Add Lorry Receipt
           </button>
+        </div>
+      </div>
+
+      {/* ADDED: Status Filter Buttons Section */}
+      <div className="mb-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-medium text-gray-700">Status :</span>
+
+          {statusOptions.map((status) => (
+            <button
+              key={status.value}
+              onClick={() => handleStatusFilterClick(status.value)}
+              style={getStatusButtonStyle(status.value)}
+              className="px-4 py-1.5 rounded-full text-sm font-medium
+                   transition-all duration-200
+                   hover:shadow-md"
+            >
+              {status.label}
+            </button>
+          ))}
         </div>
       </div>
 
