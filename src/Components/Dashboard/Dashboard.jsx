@@ -143,18 +143,6 @@ const DashboardLayout = ({ user, onLogout }) => {
                 >
                   Product List
                 </NavLink>
-
-                <NavLink
-                  to="/dashboard/warehouse/godown-tp"
-                  onClick={closeAllDropdowns}
-                  className={({ isActive }) =>
-                    `block px-4 py-2 hover:bg-gray-100 ${
-                      isActive ? "text-yellow-600 font-semibold" : ""
-                    }`
-                  }
-                >
-                  Godown TP
-                </NavLink>
               </div>
             )}
           </div>

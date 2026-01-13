@@ -4,12 +4,12 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 
 import Login from "./Components/LoginPage/Login";
 import DashboardLayout from "./Components/Dashboard/Dashboard";
 import ProfileCard from "./Components/SubComponent/ProfileCard";
-import TpPass from "./Components/TransportPass/TpPass";
 import Godown from "./Components/Warehouse Section/Godown/Godown";
 import ProductList from "./Components/Warehouse Section/ProductList/ProductList";
 import Inventory from "./Components/Warehouse Section/Invenotry/Inventory";
@@ -18,6 +18,59 @@ import GrByRail from "./Components/GoodRecipts/GrByRail";
 import GrByRoad from "./Components/GoodRecipts/GrByRoad";
 import InventoryList from "./Components/Warehouse Section/Godown/component/InventoryList";
 import RailheadIventory from "./Components/Warehouse Section/RailheadInventory/RailheadInventory";
+
+// Create a wrapper component to protect routes
+const PrivateRoute = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check authentication status
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    setIsAuthenticated(!!(token && storedUser));
+  }, []);
+
+  // Show nothing while checking authentication
+  if (isAuthenticated === null) {
+    return null; // Or a loading spinner
+  }
+
+  // If authenticated, render the children (protected content)
+  if (isAuthenticated) {
+    return children;
+  }
+
+  // If not authenticated, redirect to login with return URL
+  return (
+    <Navigate
+      to={`/login?redirect=${encodeURIComponent(location.pathname)}`}
+      replace
+    />
+  );
+};
+
+// Create a wrapper for the login route
+const PublicRoute = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    setIsAuthenticated(!!(token && storedUser));
+  }, []);
+
+  if (isAuthenticated === null) {
+    return null;
+  }
+
+  // If already authenticated, redirect to dashboard
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   const [user, setUser] = useState(null);
@@ -51,11 +104,9 @@ function App() {
         <Route
           path="/login"
           element={
-            user ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
+            <PublicRoute>
               <Login onLogin={handleLogin} />
-            )
+            </PublicRoute>
           }
         />
 
@@ -63,15 +114,13 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            user ? (
+            <PrivateRoute>
               <DashboardLayout user={user} onLogout={handleLogout} />
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            </PrivateRoute>
           }
         >
           {/* Default Home (index route) → TpPass */}
-          <Route index element={<TpPass />} />
+          <Route index element={<GodownTP />} />
 
           {/* Add Warehouse Routes Here */}
           <Route path="warehouse/godown" element={<Godown />} />
@@ -87,7 +136,6 @@ function App() {
 
           <Route path="warehouse/product-list" element={<ProductList />} />
           <Route path="warehouse/inventory" element={<Inventory />} />
-          <Route path="warehouse/godown-tp" element={<GodownTP />} />
 
           {/* Good Recipt Section */}
           <Route path="goodrecipts/grbyrail" element={<GrByRail />} />
@@ -99,8 +147,20 @@ function App() {
 
         {/* Default redirect */}
         <Route
-          path="*"
+          path="/"
           element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
+        />
+
+        {/* Catch-all route - redirect to dashboard if authenticated, otherwise to login */}
+        <Route
+          path="*"
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
       </Routes>
     </Router>

@@ -10,6 +10,8 @@ import {
   ChevronRight,
   Check,
   Square,
+  X,
+  CheckCircle,
 } from "lucide-react";
 
 const skeletonStyles = `
@@ -25,6 +27,54 @@ const skeletonStyles = `
     animation: pulse 1.5s infinite;
   }
 
+  .action-cell {
+    padding: 8px !important;
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .action-button {
+    border: none;
+    background: none;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background 0.2s ease;
+    cursor: pointer;
+  }
+
+  .action-button:hover {
+    background-color: #e9ecef;
+  }
+
+  .action-view-button {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Status icon styling */
+  .status-icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .status-icon-button:hover {
+    background-color: #e9ecef;
+  }
+
   /* 🔹 Thin horizontal scrollbar */
   .table-responsive::-webkit-scrollbar {
     height: 6px;
@@ -37,9 +87,122 @@ const skeletonStyles = `
     background: #f1f1f1;
   }
   .table-responsive {
-    scrollbar-width: thin; /* Firefox */
+    scrollbar-width: thin;
     scrollbar-color: #c1c1c1 #f1f1f1;
   }
+
+  /* Expand/Collapse row styles */
+  .expandable-row {
+    cursor: pointer;
+  }
+
+  .expanded-details {
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+  }
+
+  /* Products section styling */
+  .products-section {
+    padding: 16px !important;
+    margin: 8px 0 !important;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+  }
+
+  .products-section h6 {
+    margin-bottom: 12px !important;
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+    padding-left: 8px;
+  }
+
+  .products-table-container {
+    background-color: white;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+  }
+
+  .products-table {
+    margin: 0 !important;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .products-table thead th {
+    background-color: #f1f3f4 !important;
+    font-weight: 600;
+    font-size: 13px;
+    padding: 10px 12px !important;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+  }
+
+  .products-table tbody td {
+    padding: 8px 12px !important;
+    font-size: 13px;
+    border-bottom: 1px solid #e9ecef;
+  }
+
+  .products-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .products-table tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+
+  .expand-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+    transition: all 0.2s ease;
+  }
+
+  .expand-icon:hover {
+    background-color: #dee2e6;
+  }
+
+  /* Column widths for products table */
+  .product-name-col {
+    min-width: 150px;
+    text-align: left !important;
+  }
+
+  .warehouse-col {
+    min-width: 120px;
+    text-align: left !important;
+  }
+
+  .quantity-col,
+  .bags-col,
+  .weight-col,
+  .cost-col,
+  .updatedQuantity-col {
+    min-width: 100px;
+  }
+
+  /* Empty state styling */
+  .empty-products {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    background-color: white;
+    border-radius: 6px;
+    border: 1px dashed #dee2e6;
+  }
+
+  .gradient-button {
+  background: linear-gradient(to right, #504255, #cbb4d4);
+  color: white;
+}
 `;
 
 function TableArray({
@@ -50,7 +213,7 @@ function TableArray({
   viewButton,
   viewButtonLabel = "View",
   viewButtonIcon = <Eye size={16} />,
-  viewButtonColor = "rgb(10, 45, 99)",
+  viewButtonColor = "linear-gradient(to right, #504255, #cbb4d4)",
   handleViewButton,
   editButton,
   handleEditButton,
@@ -61,6 +224,10 @@ function TableArray({
   isFetching,
   reportButton,
   handleReportButton,
+  statusButton = false,
+  handleStatusButton,
+  statusButtonLabel = "Status",
+  statusButtonIcon = <CheckCircle size={18} />,
   checkButton = false,
   handleCheckboxButton,
   getCheckboxChecked,
@@ -72,8 +239,8 @@ function TableArray({
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [checkedRows, setCheckedRows] = useState(new Set());
 
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  // Use filteredData directly since it already contains the current page data
+  const currentData = filteredData;
 
   const toggleRowExpansion = (rowId) => {
     const newExpandedRows = new Set(expandedRows);
@@ -101,7 +268,29 @@ function TableArray({
     }
   };
 
-  const isRowChecked = (rowId) => checkedRows.has(rowId);
+  const isRowChecked = (rowId) => {
+    if (getCheckboxChecked) {
+      const row = currentData.find((r) => (r.id || r._id) === rowId);
+      return getCheckboxChecked(row);
+    }
+    return checkedRows.has(rowId);
+  };
+
+  // Function to determine status icon based on status
+  const getStatusIcon = (row) => {
+    const status = row?.status?.toLowerCase();
+
+    if (status === "completed") {
+      return <Check color="#28a745" size={18} />;
+    } else if (status === "cancelled") {
+      return <X color="#dc3545" size={18} />;
+    } else if (status === "partially correction") {
+      return <Check color="#28a745" size={18} />;
+    } else {
+      // Pending or any other status
+      return <Square color="#6c757d" size={18} />;
+    }
+  };
 
   const handleSort = (key) => {
     if (!columns.find((column) => column.key === key && column.sortable))
@@ -137,60 +326,56 @@ function TableArray({
 
   const renderProductsTable = (products) => {
     if (!products || products.length === 0) {
-      return (
-        <div className="p-3 text-center text-gray-500">No products found</div>
-      );
+      return <div className="empty-products">No products found</div>;
     }
 
     return (
-      <div className="p-3">
-        <h6 className="mb-3 font-semibold text-gray-700">
-          Products ({products.length})
-        </h6>
-        <div className="overflow-x-auto">
-          <table className="w-full bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="products-section">
+        <h6>Products ({products.length})</h6>
+        <div className="products-table-container">
+          <table className="w-full bg-white border-collapse">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
+              <tr>
+                <th className="product-name-col px-4 py-3 text-left font-semibold border-b">
                   Product Name
                 </th>
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
+                <th className="warehouse-col px-4 py-3 text-left font-semibold border-b">
                   Warehouse
                 </th>
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
+                <th className="quantity-col px-4 py-3 text-center font-semibold border-b">
                   Quantity (MT)
                 </th>
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
-                  Bags
+                <th className="bagSize-col px-4 py-3 text-center font-semibold border-b">
+                  Bag Size
                 </th>
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
-                  Item Weight
+                <th className="totalBags-col px-4 py-3 text-center font-semibold border-b">
+                  Total Bags
                 </th>
-                <th className="px-4 py-3 text-left border border-gray-200 font-semibold text-gray-600">
-                  Item Cost
+                <th className="updatedQuantityMT px-4 py-3 text-center font-semibold border-b">
+                  Quantity Taken By Party(MT)
                 </th>
               </tr>
             </thead>
             <tbody>
               {products.map((product, index) => (
                 <tr key={product._id || index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.productName}
+                  <td className="product-name-col px-4 py-3 border-b">
+                    {product.productName || "-"}
                   </td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.warehouseName}
+                  <td className="warehouse-col px-4 py-3 border-b">
+                    {product.warehouseName || "-"}
                   </td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.quantityMT}
+                  <td className="quantity-col px-4 py-3 text-center border-b">
+                    {product.quantityMT || "0"}
                   </td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.bags}
+                  <td className="bagSize-col px-4 py-3 text-center border-b">
+                    {product.bagSize || "0"}
                   </td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.itemWeight}
+                  <td className="totalBags-col px-4 py-3 text-center border-b">
+                    {product.totalBags || "0"}
                   </td>
-                  <td className="px-4 py-3 border border-gray-200">
-                    {product.itemCost}
+                  <td className="updatedQuantity-col px-4 py-3 text-center border-b">
+                    {product.updatedQuantityMT || "0"}
                   </td>
                 </tr>
               ))}
@@ -230,6 +415,9 @@ function TableArray({
                       key={column.key + "-" + idx}
                       className="px-4 py-2 text-center cursor-pointer select-none border border-gray-300"
                       onClick={() => column.sortable && handleSort(column.key)}
+                      style={{
+                        minWidth: column.minWidth || "auto",
+                      }}
                     >
                       {column.label}{" "}
                       {column.sortable && getSortIcon(column.key)}
@@ -239,6 +427,7 @@ function TableArray({
                   deleteButton ||
                   viewButton ||
                   reportButton ||
+                  statusButton ||
                   checkButton) && (
                   <th className="px-4 py-2 text-center border border-gray-300 min-w-[180px]">
                     {action}
@@ -269,9 +458,13 @@ function TableArray({
                       deleteButton ||
                       viewButton ||
                       reportButton ||
+                      statusButton ||
                       checkButton) && (
                       <td className="px-4 py-2 text-center border border-gray-200">
-                        <div className="flex justify-center items-center gap-3">
+                        <div className="action-buttons">
+                          {statusButton && (
+                            <div className="skeleton-loader h-5 w-5 rounded" />
+                          )}
                           {checkButton && (
                             <div className="skeleton-loader h-5 w-5 rounded" />
                           )}
@@ -306,17 +499,22 @@ function TableArray({
                   const rowId = row.id || row._id;
                   const isExpanded = isRowExpanded(rowId);
                   const hasProducts = row.products && row.products.length > 0;
-                  const isChecked = getCheckboxChecked
-                    ? getCheckboxChecked(row)
-                    : isRowChecked(rowId);
+                  const statusIcon = getStatusIcon(row);
+                  const status = row?.status?.toLowerCase();
+                  const isCompletedOrCancelled =
+                    status === "completed" ||
+                    status === "cancelled" ||
+                    status === "partially correction";
+
+                  const isChecked = isRowChecked(rowId);
 
                   return (
                     <React.Fragment key={rowIndex}>
-                      <tr className="hover:bg-gray-50">
+                      <tr className="hover:bg-gray-50 expandable-row">
                         <td className="px-4 py-2 text-center border border-gray-200">
                           {hasProducts && (
                             <button
-                              className="flex items-center justify-center w-6 h-6 mx-auto rounded hover:bg-gray-200 transition-colors"
+                              className="expand-icon action-button"
                               onClick={() => toggleRowExpansion(rowId)}
                               aria-label={isExpanded ? "Collapse" : "Expand"}
                             >
@@ -359,7 +557,7 @@ function TableArray({
                                           : rowId
                                       )
                                     }
-                                    className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
+                                    className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100 action-button"
                                     title={
                                       visiblePasswordRowId === rowId
                                         ? "Show password"
@@ -384,9 +582,24 @@ function TableArray({
                           deleteButton ||
                           viewButton ||
                           reportButton ||
+                          statusButton ||
                           checkButton) && (
-                          <td className="px-4 py-2 text-center border border-gray-200">
-                            <div className="flex justify-center items-center gap-2">
+                          <td className="px-4 py-2 text-center border border-gray-200 action-cell">
+                            <div className="action-buttons">
+                              {/* Status Icon Button */}
+                              {statusButton && (
+                                <button
+                                  className="status-icon-button action-button"
+                                  onClick={() => handleStatusButton(rowId)}
+                                  aria-label={`Status: ${
+                                    row?.status || "Pending"
+                                  }`}
+                                  title={`Status: ${row?.status || "Pending"}`}
+                                >
+                                  {statusIcon}
+                                </button>
+                              )}
+
                               {checkButton && (
                                 <label
                                   className={`flex items-center justify-center w-9 h-9 rounded cursor-pointer transition-colors ${
@@ -419,32 +632,55 @@ function TableArray({
 
                               {editButton && (
                                 <button
-                                  className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                                  className="action-button"
                                   onClick={() => handleEditButton(rowId)}
                                   aria-label="Edit"
-                                  title="Edit"
+                                  disabled={isCompletedOrCancelled}
+                                  title={
+                                    isCompletedOrCancelled
+                                      ? "Cannot edit completed/cancelled/Partially Correction records"
+                                      : "Edit"
+                                  }
                                 >
-                                  <Pencil color="#2D336B" size={18} />
+                                  <Pencil
+                                    color={
+                                      isCompletedOrCancelled
+                                        ? "#6c757d"
+                                        : "#2D336B"
+                                    }
+                                    size={18}
+                                  />
                                 </button>
                               )}
 
                               {deleteButton && (
                                 <button
-                                  className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                                  className="action-button"
                                   onClick={() => handleDeleteButton(rowId)}
                                   aria-label="Delete"
-                                  title="Delete"
+                                  disabled={isCompletedOrCancelled}
+                                  title={
+                                    isCompletedOrCancelled
+                                      ? "Cannot delete completed/cancelled/Partially Correction records"
+                                      : "Delete"
+                                  }
                                 >
-                                  <Trash2 color="#2D336B" size={18} />
+                                  <Trash2
+                                    color={
+                                      isCompletedOrCancelled
+                                        ? "#6c757d"
+                                        : "#2D336B"
+                                    }
+                                    size={18}
+                                  />
                                 </button>
                               )}
 
                               {reportButton && (
                                 <button
-                                  className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                                  className="action-button"
                                   onClick={() => handleReportButton(rowId)}
                                   aria-label="Report"
-                                  title="Report"
                                 >
                                   <FileText color="#2D336B" size={18} />
                                 </button>
@@ -458,9 +694,9 @@ function TableArray({
                                     setViewLoadingId(null);
                                   }}
                                   disabled={viewLoadingId === rowId}
-                                  className="flex items-center gap-2 px-3 py-1.5 rounded text-white transition-opacity"
+                                  className="action-view-button gradient-button"
                                   style={{
-                                    background: viewButtonColor,
+                                    backgroundColor: viewButtonColor,
                                     opacity: viewLoadingId === rowId ? 0.6 : 1,
                                   }}
                                 >
@@ -477,10 +713,11 @@ function TableArray({
                         )}
                       </tr>
                       {isExpanded && hasProducts && (
-                        <tr className="bg-gray-50 transition-all duration-300">
+                        <tr className="expanded-details">
                           <td
                             colSpan={columns.length + 3}
                             className="border border-gray-200"
+                            style={{ padding: "0" }}
                           >
                             {renderProductsTable(row.products)}
                           </td>
@@ -517,13 +754,19 @@ TableArray.propTypes = {
   isFetching: PropTypes.bool,
   reportButton: PropTypes.bool,
   handleReportButton: PropTypes.func,
+  statusButton: PropTypes.bool,
+  handleStatusButton: PropTypes.func,
+  statusButtonLabel: PropTypes.string,
+  statusButtonIcon: PropTypes.node,
   checkButton: PropTypes.bool,
   handleCheckboxButton: PropTypes.func,
   getCheckboxChecked: PropTypes.func,
+  action: PropTypes.string,
 };
 
 TableArray.defaultProps = {
   isFetching: false,
+  statusButton: false,
   checkButton: false,
 };
 

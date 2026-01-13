@@ -1,5 +1,6 @@
 import { api } from "../../../lib/services/api_services";
 import { formatDateToDDMMYYYY } from '../../../customhooks/useFormattedDate'
+import { useEffect } from "react";
 
 
 // This is godown section
@@ -180,79 +181,96 @@ export const getInventoryProductListApi = async ({ queryKey }) => {
 
 // Godown LR tp pass
 
-// Get api
+// get
 export const getGodownTPApi = async ({ queryKey }) => {
-    const [_key, { search, page, limit }] = queryKey;
+    const [_key, { search, page, limit, consignorId, consigneeId }] = queryKey;
 
-    const { receipts } = await api.get(
+    const params = {
+        search: search || "",
+        page,
+        limit,
+    };
+
+    if (consignorId) params.consignorId = consignorId;
+    if (consigneeId) params.consigneeId = consigneeId;
+
+    // ✅ api.get already returns response.data
+    const data = await api.get(
         `${import.meta.env.VITE_API_URL}/api/godown-lorry-receipt/get`,
-        {
-            params: {
-                search: search || "",
-                page,
-                limit,
-            },
-        }
+        params
     );
 
-    console.log("All Lorry Receipts Data: ", receipts);
+    console.log("All Lorry Receipts Data:", data);
 
-    // Map the receipts data to include all necessary fields
-    const mappedData = receipts.map((item) => ({
-        id: item._id,
-        _id: item._id,
-        date: formatDateToDDMMYYYY(item.date),
-        originalDate: item.date,
-        ownerName: item.ownerName,
-        consignorName: item.consignorName,
-        consignorAddress: item.consignorAddress,
-        consigneeName: item.consigneeName,
-        consigneeAddress: item.consigneeAddress,
-        customerName: item.customerName,
-        customerAddress: item.customerAddress,
-        startLocation: item.startLocation,
-        endLocation: item.endLocation,
-        vehicleId: item.vehicleId,
-        vehicleName: item.vehicleName,
-        workerId: item.workerId?._id || null,
-        workerName: item.workerId?.name || "",
-        driverId: item.driverId,
-        driverName: item.driverName,
-        supervisorId: item.supervisorId,
-        products: item.products?.map((p) => ({
-            warehouseId: p.warehouseId,
-            warehouseName: p.warehouseName,
-            productId: p.productId,
-            productName: p.productName,
-            quantityMT: p.quantityMT,
-            bags: p.bags,
-            itemUnit: p.itemUnit,
-            itemWeight: p.itemWeight,
-            itemCost: p.itemCost,
-            id: p._id,
-            _id: p._id,
-        })) || [],
-        customerRate: item.customerRate,
-        totalAmount: item.totalAmount,
-        transporterRate: item.transporterRate,
-        totalTransporterAmount: item.totalTransporterAmount,
-        transporterRateOn: item.transporterRateOn,
-        customerRateOn: item.customerRateOn,
-        customerFreight: item.customerFreight,
-        transporterFreight: item.transporterFreight,
-        status: item.status,
-    }));
-
-    // Return the structure that both TableArray and pagination expect
     return {
-        total: receipts.total,
-        totalPages: Math.ceil(receipts.total / limit),
-        page: receipts.page,
-        limit: receipts.limit,
-        data: mappedData, // This is what TableArray will use directly
-        allData: mappedData, // Keep this for filteredData if needed
+        total: data.total,
+        page: data.page,
+        limit: data.limit,
+
+        receipts: data.receipts.map((item) => ({
+            id: item._id,
+            date: formatDateToDDMMYYYY(item.date),
+            originalDate: item.date,
+            receiptNo: item.receiptNo,
+            issuedBy: item.issuedBy,
+            receivedBy: item.receivedBy,
+
+            companyId: item.companyId?._id,
+            companyName: item.companyId?.companyName,
+            companyEmail: item.companyId?.email,
+            companyAddress: item.companyId?.address,
+            companymobileNumber: item.companyId?.mobileNumber,
+            companyofficeNumber: item.companyId?.officeNumber,
+            companygstNumber: item.companyId?.gstNumber,
+            digitalSignatureId: item.companyId?.digitalSignatureId,
+
+            consignorId: item.consignorId,
+            consignorName: item.consignorName,
+            consignorAddress: item.consignorAddress,
+            consigneeId: item.consigneeId,
+            consigneeName: item.consigneeName,
+            consigneeAddress: item.consigneeAddress,
+
+            customerName: item.customerName,
+            customerAddress: item.customerAddress,
+            startLocation: item.startLocation,
+            endLocation: item.endLocation,
+
+            vehicleId: item.vehicleId,
+            vehicleName: item.vehicleName,
+
+            driverId: item.driverId,
+            driverName: item.driverName,
+            supervisorId: item.supervisorId,
+
+            acknowledgementImage: item.acknowledgementImage,
+
+            products:
+                item.products?.map((p) => ({
+                    warehouseId: p.warehouseId,
+                    warehouseName: p.warehouseName,
+                    productId: p.productId,
+                    productName: p.productName,
+                    quantityMT: p.quantityMT || 0,
+                    bagSize: p.bagSize || 0,
+                    totalBags: p.totalBags || 0,
+                    updatedQuantityMT: p.updatedQuantityMT || 0,
+                    id: p._id,
+                })) || [],
+
+            customerRate: item.customerRate || 0,
+            totalAmount: item.totalAmount || 0,
+            transporterRate: item.transporterRate || 0,
+            totalTransporterAmount: item.totalTransporterAmount || 0,
+            transporterRateOn: item.transporterRateOn || 0,
+            customerRateOn: item.customerRateOn || 0,
+            customerFreight: item.customerFreight || 0,
+            transporterFreight: item.transporterFreight || 0,
+            status: item.status,
+        })),
     };
 };
+
 
 
 // post Api TP
@@ -275,6 +293,135 @@ export const postGodownTPApi = async (create) => {
         throw new Error(error.response?.data?.message || "Failed to create Inventory");
     }
 };
+
+// // Patch update status data
+// export const patchGodownTPStatusApi = async (id, data) => {
+//     try {
+//         const response = await api.patch(
+//             `${import.meta.env.VITE_API_URL}/api/godown-lorry-receipt/update-status/${id}`,
+//             data,
+//             {
+//                 headers: { Authorization: `Bearer ${TOKEN}` },
+//             }
+//         );
+
+//         return response.data;
+//     } catch (error) {
+//         throw new Error(error.response?.data?.message || 'Update failed');
+//     }
+// };
+
+// // DELETE Warehouse
+// export const deleteGodownTPApi = async (id) => {
+//     try {
+//         const response = await api.delete(
+//             `${import.meta.env.VITE_API_URL}/api/godown-lorry-receipt/softdelete/${id}`,
+//             {
+//                 headers: { Authorization: `Bearer ${TOKEN}` },
+//             }
+//         );
+
+//         return response.data;
+//     } catch (error) {
+//         throw new Error(error.response?.data?.message || 'Delete failed');
+//     }
+// };
+
+
+// // acknowledgementImage
+
+// export const patchAcknowledgementsApi = async (id, formData) => {
+//     try {
+//         const response = await api.patch(
+//             `${import.meta.env.VITE_API_URL}/api/godown-lorry-receipt/update-status/${id}`,
+//             formData,
+//             {
+//                 headers: {
+//                     'Content-Type': 'multipart/form-data',
+//                     Authorization: `Bearer ${TOKEN}`,
+//                 },
+//             }
+//         )
+//         return response.data
+//     } catch (error) {
+//         console.error("Error:", error.response?.data || error.message)
+//         throw error
+//     }
+// }
+
+
+// ------------------------------------------------------------------------------------------------------------------------------------ 
+
+
+// Consignee api 
+export const getConsigneeApi = async ({ queryKey }) => {
+    const [_key, { search, page, limit }] = queryKey;
+
+    const response = await api.get(
+        `${import.meta.env.VITE_API_URL}/api/consignee/get`,
+        {
+            params: {
+                search: search || '',
+                page,
+                limit
+            },
+        }
+    );
+
+    // Check the actual response structure
+    console.log("Consignee API Response:", response);
+
+    // Assuming response has data property with consignees array
+    const consignees = response.data?.consignees || response.consignees || response.data || [];
+    const totalCount = response.data?.count || response.count || consignees.length;
+
+    return {
+        data: consignees.map((item) => ({
+            id: item._id || item.id,
+            name: item.name || "Unknown",
+            address: item.address || "Unknown",
+        })),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit) || 1,
+        page: page
+    };
+};
+
+// Consignor api
+export const getConsignorApi = async ({ queryKey }) => {
+    const [_key, { search, page, limit }] = queryKey;
+
+    const response = await api.get(
+        `${import.meta.env.VITE_API_URL}/api/consignor/get`,
+        {
+            params: {
+                search: search || '',
+                page,
+                limit
+            },
+        }
+    );
+
+    // Check the actual response structure
+    console.log("Consignor API Response:", response);
+
+    // Assuming response has data property with consignors array
+    const consignors = response.data?.consignors || response.consignors || response.data || [];
+    const totalCount = response.data?.count || response.count || consignors.length;
+
+    return {
+        data: consignors.map((item) => ({
+            id: item._id || item.id,
+            name: item.name || "Unknown",
+            address: item.address || "Unknown",
+        })),
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit) || 1,
+        page: page
+    };
+};
+
+
 
 // -------------------------------------------------------------------------------------------------------------- 
 
