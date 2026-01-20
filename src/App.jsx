@@ -20,7 +20,7 @@ import InventoryList from "./Components/Warehouse Section/Godown/component/Inven
 import RailheadIventory from "./Components/Warehouse Section/RailheadInventory/RailheadInventory";
 
 // Create a wrapper component to protect routes
-const PrivateRoute = ({ children }) => {
+const PrivateRoute = ({ children, user }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const location = useLocation();
 
@@ -29,7 +29,7 @@ const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
     setIsAuthenticated(!!(token && storedUser));
-  }, []);
+  }, [user]); // Added user dependency
 
   // Show nothing while checking authentication
   if (isAuthenticated === null) {
@@ -51,14 +51,14 @@ const PrivateRoute = ({ children }) => {
 };
 
 // Create a wrapper for the login route
-const PublicRoute = ({ children }) => {
+const PublicRoute = ({ children, user }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
     setIsAuthenticated(!!(token && storedUser));
-  }, []);
+  }, [user]); // Added user dependency
 
   if (isAuthenticated === null) {
     return null;
@@ -74,6 +74,7 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Load user/token from localStorage when app mounts
   useEffect(() => {
@@ -81,8 +82,16 @@ function App() {
     const storedUser = localStorage.getItem("user");
 
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        // Clear invalid data
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
     }
+    setAuthChecked(true);
   }, []);
 
   const handleLogin = (data) => {
@@ -95,7 +104,14 @@ function App() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+    // Force a navigation to login page
+    window.location.href = "/login";
   };
+
+  // Show loading while checking authentication
+  if (!authChecked) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <Router>
@@ -104,7 +120,7 @@ function App() {
         <Route
           path="/login"
           element={
-            <PublicRoute>
+            <PublicRoute user={user}>
               <Login onLogin={handleLogin} />
             </PublicRoute>
           }
@@ -114,7 +130,7 @@ function App() {
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute>
+            <PrivateRoute user={user}>
               <DashboardLayout user={user} onLogout={handleLogout} />
             </PrivateRoute>
           }
@@ -148,7 +164,13 @@ function App() {
         {/* Default redirect */}
         <Route
           path="/"
-          element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
+          element={
+            user ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
 
         {/* Catch-all route - redirect to dashboard if authenticated, otherwise to login */}
