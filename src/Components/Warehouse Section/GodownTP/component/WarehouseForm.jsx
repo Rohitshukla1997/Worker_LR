@@ -221,7 +221,7 @@ const WarehouseForm = ({
         }));
       } else {
         const selectedVehicle = vehicles.find(
-          (v) => v.id === selected.value || v._id === selected.value
+          (v) => v.id === selected.value || v._id === selected.value,
         );
         setFormData((prev) => ({
           ...prev,
@@ -482,7 +482,7 @@ const WarehouseForm = ({
       formData.issuedBy === "Railhead"
     ) {
       const hasWarehouseInProducts = formData.products.some(
-        (product) => product.warehouseId || product.warehouseName
+        (product) => product.warehouseId || product.warehouseName,
       );
       if (hasWarehouseInProducts) {
         const updatedProducts = formData.products.map((product) => ({
@@ -542,7 +542,7 @@ const WarehouseForm = ({
   const handleWarehouseSelect = (selected) => {
     if (selected) {
       const selectedWarehouse = warehouseList.find(
-        (w) => w.id === selected.value || w._id === selected.value
+        (w) => w.id === selected.value || w._id === selected.value,
       );
       setFormData((prev) => ({
         ...prev,
@@ -566,7 +566,7 @@ const WarehouseForm = ({
 
     if (field === "warehouseId") {
       const selectedWarehouse = warehouseList.find(
-        (w) => w.id === value || w._id === value
+        (w) => w.id === value || w._id === value,
       );
       updatedProducts[index] = {
         ...updatedProducts[index],
@@ -576,7 +576,7 @@ const WarehouseForm = ({
       };
     } else if (field === "productId") {
       const selectedProduct = inventoryList.find(
-        (p) => p._id === value || p.id === value
+        (p) => p._id === value || p.id === value,
       );
 
       if (selectedProduct) {
@@ -722,17 +722,17 @@ const WarehouseForm = ({
       const productNumber = firstError.index + 1;
       const errorDetails = firstError.errors.join(", ");
       toast.error(
-        `Product ${productNumber} has validation errors: ${errorDetails}`
+        `Product ${productNumber} has validation errors: ${errorDetails}`,
       );
       return;
     }
 
     const vehicleExistsInDb = vehicleOptions.some(
-      (vehicle) => vehicle.value === formData.vehicleId
+      (vehicle) => vehicle.value === formData.vehicleId,
     );
 
     const driverExistsInDb = driverOptions.some(
-      (driver) => driver.value === formData.driverId
+      (driver) => driver.value === formData.driverId,
     );
 
     const processNumberField = (value) => {
@@ -745,7 +745,7 @@ const WarehouseForm = ({
 
     const preparedProducts = formData.products.map((product) => {
       const productFromInventory = inventoryList.find(
-        (p) => p._id === product.productId || p.id === product.productId
+        (p) => p._id === product.productId || p.id === product.productId,
       );
 
       const actualProductId =
@@ -787,7 +787,7 @@ const WarehouseForm = ({
       totalAmount: processNumberField(formData.totalAmount),
       transporterRate: processNumberField(formData.transporterRate),
       totalTransporterAmount: processNumberField(
-        formData.totalTransporterAmount
+        formData.totalTransporterAmount,
       ),
       transporterRateOn: processNumberField(formData.transporterRateOn),
       customerRateOn: processNumberField(formData.customerRateOn),
@@ -911,7 +911,7 @@ const WarehouseForm = ({
   const getProductValue = (product) => {
     if (product.inventoryId) {
       const found = productOptions.find(
-        (opt) => opt.value === product.inventoryId
+        (opt) => opt.value === product.inventoryId,
       );
       if (found) return found;
     }
@@ -952,7 +952,7 @@ const WarehouseForm = ({
   const getVehicleValue = () => {
     if (formData.vehicleId) {
       const existingVehicle = vehicleOptions.find(
-        (opt) => opt.value === formData.vehicleId
+        (opt) => opt.value === formData.vehicleId,
       );
       if (existingVehicle) {
         return existingVehicle;
@@ -968,7 +968,7 @@ const WarehouseForm = ({
   const getDriverValue = () => {
     if (formData.driverId) {
       const existingDriver = driverOptions.find(
-        (opt) => opt.value === formData.driverId
+        (opt) => opt.value === formData.driverId,
       );
       if (existingDriver) {
         return existingDriver;
@@ -985,7 +985,7 @@ const WarehouseForm = ({
     if (!formData.receivedByWarehouseId) return null;
     return (
       receivedByWarehouseOptions.find(
-        (opt) => opt.value === formData.receivedByWarehouseId
+        (opt) => opt.value === formData.receivedByWarehouseId,
       ) || null
     );
   };
@@ -1034,7 +1034,7 @@ const WarehouseForm = ({
         (p) =>
           p._id === product.inventoryId ||
           p.id === product.inventoryId ||
-          p.productId === product.productId
+          p.productId === product.productId,
       );
       if (productFromList) {
         productDetail = {
@@ -1273,7 +1273,7 @@ const WarehouseForm = ({
                               onChange={(selected) => {
                                 if (selected) {
                                   const selectedCompany = companyList.find(
-                                    (c) => c.id === selected.value
+                                    (c) => c.id === selected.value,
                                   );
                                   setFormData((prev) => ({
                                     ...prev,
@@ -1377,6 +1377,7 @@ const WarehouseForm = ({
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Consignor Name
+                              <span className="text-red-500">*</span>
                             </label>
                             <Select
                               value={getConsignorValue()}
@@ -1426,6 +1427,7 @@ const WarehouseForm = ({
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Consignee Name
+                              <span className="text-red-500">*</span>
                             </label>
                             <Select
                               value={getConsigneeValue()}
@@ -1545,7 +1547,7 @@ const WarehouseForm = ({
                           {formData.products.map((product, index) => {
                             const calculations = calculateProductDetails(
                               product,
-                              index
+                              index,
                             );
                             const productDetail =
                               getProductDetailForDisplay(product);
@@ -1685,7 +1687,7 @@ const WarehouseForm = ({
                                           handleProductChange(
                                             index,
                                             "warehouseId",
-                                            selected ? selected.value : ""
+                                            selected ? selected.value : "",
                                           )
                                         }
                                         options={warehouseOptions}
@@ -1711,7 +1713,7 @@ const WarehouseForm = ({
                                         handleProductChange(
                                           index,
                                           "productId",
-                                          selected ? selected.value : ""
+                                          selected ? selected.value : "",
                                         )
                                       }
                                       options={productOptions}
@@ -1745,7 +1747,7 @@ const WarehouseForm = ({
                                         handleProductChange(
                                           index,
                                           "totalBags",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                       onWheel={handleNumberInputScroll}
@@ -1767,7 +1769,7 @@ const WarehouseForm = ({
                                         handleProductChange(
                                           index,
                                           "bagSize",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                       onWheel={handleNumberInputScroll}
@@ -1793,7 +1795,7 @@ const WarehouseForm = ({
                                         handleProductChange(
                                           index,
                                           "quantityMT",
-                                          e.target.value
+                                          e.target.value,
                                         )
                                       }
                                       onWheel={handleNumberInputScroll}

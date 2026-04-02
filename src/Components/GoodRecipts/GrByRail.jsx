@@ -17,7 +17,7 @@ import {
 const defaultProduct = {
   productId: "",
   productName: "",
-  quantityKg: "", // Changed from quantityKg to quantityMt (Metric Tons)
+  quantityMT: "", // Changed from quantityMT to quantityMt (Metric Tons)
   bagSize: "", // Bag weight in kg
   totalBags: "",
 };
@@ -121,8 +121,8 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
           index + 1
         } is required`;
       }
-      if (!product.quantityKg || parseFloat(product.quantityKg) <= 0) {
-        errors[`quantityKg_${index}`] = `Valid quantity for product ${
+      if (!product.quantityMT || parseFloat(product.quantityMT) <= 0) {
+        errors[`quantityMT_${index}`] = `Valid quantity for product ${
           index + 1
         } is required`;
       }
@@ -153,7 +153,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
       products: formData.products.map((product) => ({
         productId: product.productId,
         productName: product.productName || "",
-        quantityKg: parseFloat(product.quantityKg) * 1000, // Convert MT to Kg
+        quantityMT: parseFloat(product.quantityMT) || 0,
         bagSize: parseFloat(product.bagSize) || 0,
         totalBags: parseInt(product.totalBags) || 0,
       })),
@@ -179,7 +179,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
     if (!productId) return null;
 
     const selectedProduct = inventoryList.find(
-      (item) => item._id === productId
+      (item) => item._id === productId,
     );
     if (selectedProduct) {
       return {
@@ -215,7 +215,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
 
     // Handle regular product selection
     const selectedProduct = inventoryList.find(
-      (item) => item._id === selected?.value
+      (item) => item._id === selected?.value,
     );
 
     if (selectedProduct) {
@@ -418,8 +418,8 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                                   backgroundColor: state.isSelected
                                     ? "#2563eb"
                                     : state.isFocused
-                                    ? "#f3f4f6"
-                                    : base.backgroundColor,
+                                      ? "#f3f4f6"
+                                      : base.backgroundColor,
                                   color: state.isSelected
                                     ? "white"
                                     : base.color,
@@ -452,7 +452,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                                 handleProductChange(
                                   index,
                                   "bagSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               onWheel={handleWheel}
@@ -479,7 +479,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                                 handleProductChange(
                                   index,
                                   "totalBags",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               onWheel={handleWheel}
@@ -502,12 +502,12 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                             </label>
                             <input
                               type="number"
-                              value={product.quantityKg}
+                              value={product.quantityMT}
                               onChange={(e) =>
                                 handleProductChange(
                                   index,
-                                  "quantityKg",
-                                  e.target.value
+                                  "quantityMT",
+                                  e.target.value,
                                 )
                               }
                               onWheel={handleWheel}
@@ -516,14 +516,14 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                               min="0.001"
                               step="0.001"
                               className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                formErrors[`quantityKg_${index}`]
+                                formErrors[`quantityMT_${index}`]
                                   ? "border-red-500"
                                   : "border-gray-300"
                               } disabled:bg-gray-100`}
                             />
-                            {formErrors[`quantityKg_${index}`] && (
+                            {formErrors[`quantityMT_${index}`] && (
                               <p className="mt-1 text-sm text-red-600">
-                                {formErrors[`quantityKg_${index}`]}
+                                {formErrors[`quantityMT_${index}`]}
                               </p>
                             )}
                             <p className="mt-1 text-sm text-gray-500">
