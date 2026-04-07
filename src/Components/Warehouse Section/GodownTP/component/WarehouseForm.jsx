@@ -27,6 +27,7 @@ import {
   getWarehouseListApi,
   getWarehouseProfileApi,
   getRailHeadApi,
+  getMartialOwnerDropDownApi,
 } from "../../data/data";
 import { toast } from "react-toastify";
 
@@ -74,8 +75,9 @@ const defaultFormData = {
   consigneeId: "",
   consigneeName: "",
   consigneeAddress: "",
-  customerName: "",
-  customerAddress: "",
+  materialOwnerId: "",
+  materialOwnerName: "",
+  materialOwnerAddress: "",
   startLocation: "",
   endLocation: "",
   customerRate: "",
@@ -87,6 +89,27 @@ const defaultFormData = {
   customerFreight: "",
   transporterFreight: "",
   products: [{ ...defaultProduct }],
+};
+
+// Calculate quantity in MT from bag size and total bags
+const calculateQuantityFromBags = (bagSize, totalBags) => {
+  if (!bagSize || !totalBags || bagSize <= 0 || totalBags <= 0) return "";
+  const quantityInMT = (bagSize * totalBags) / 1000;
+  return quantityInMT.toFixed(3);
+};
+
+// Calculate total bags from bag size and quantity in MT
+const calculateBagsFromQuantity = (bagSize, quantityMT) => {
+  if (!bagSize || !quantityMT || bagSize <= 0 || quantityMT <= 0) return "";
+  const totalBags = (quantityMT * 1000) / bagSize;
+  return Math.round(totalBags);
+};
+
+// Calculate bag size from total bags and quantity in MT
+const calculateBagSizeFromQuantityAndBags = (quantityMT, totalBags) => {
+  if (!quantityMT || !totalBags || quantityMT <= 0 || totalBags <= 0) return "";
+  const bagSize = (quantityMT * 1000) / totalBags;
+  return bagSize.toFixed(2);
 };
 
 // Debounce hook
@@ -121,6 +144,7 @@ const WarehouseForm = ({
   const [productDetails, setProductDetails] = useState({});
   const [showConsignorModal, setShowConsignorModal] = useState(false);
   const [showConsigneeModal, setShowConsigneeModal] = useState(false);
+  const [calculationSource, setCalculationSource] = useState({});
 
   const [receivedByOptions] = useState([
     {
@@ -138,15 +162,53 @@ const WarehouseForm = ({
   // Search and pagination states
   const [consignorSearchInput, setConsignorSearchInput] = useState("");
   const [consigneeSearchInput, setConsigneeSearchInput] = useState("");
+  const [materialOwnerSearchInput, setMaterialOwnerSearchInput] = useState("");
 
   const debouncedConsignorSearch = useDebounce(consignorSearchInput, 300);
   const debouncedConsigneeSearch = useDebounce(consigneeSearchInput, 300);
+  const debouncedMaterialOwnerSearch = useDebounce(
+    materialOwnerSearchInput,
+    300,
+  );
 
   const [consignorPage, setConsignorPage] = useState(1);
   const [consigneePage, setConsigneePage] = useState(1);
+  const [materialOwnerPage, setMaterialOwnerPage] = useState(1);
   const itemsPerPage = 20;
 
   const queryClient = useQueryClient();
+
+  // Calculate total quantity in MT across all products
+  const calculateTotalQuantityMT = useCallback(() => {
+    return formData.products.reduce((total, product) => {
+      const quantity = parseFloat(product.quantityMT) || 0;
+      return total + quantity;
+    }, 0);
+  }, [formData.products]);
+
+  // Auto-calculate total amount when customer rate or total quantity changes
+  useEffect(() => {
+    const totalQuantity = calculateTotalQuantityMT();
+    const customerRate = parseFloat(formData.customerRate) || 0;
+    const calculatedTotalAmount = totalQuantity * customerRate;
+
+    setFormData((prev) => ({
+      ...prev,
+      totalAmount: calculatedTotalAmount.toFixed(2),
+    }));
+  }, [formData.customerRate, formData.products, calculateTotalQuantityMT]);
+
+  // Auto-calculate total transporter amount when transporter rate or total quantity changes
+  useEffect(() => {
+    const totalQuantity = calculateTotalQuantityMT();
+    const transporterRate = parseFloat(formData.transporterRate) || 0;
+    const calculatedTotalTransporterAmount = totalQuantity * transporterRate;
+
+    setFormData((prev) => ({
+      ...prev,
+      totalTransporterAmount: calculatedTotalTransporterAmount.toFixed(2),
+    }));
+  }, [formData.transporterRate, formData.products, calculateTotalQuantityMT]);
 
   const { data: companyList = [] } = useQuery({
     queryKey: ["companyList"],
@@ -199,15 +261,56 @@ const WarehouseForm = ({
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch Material Owner data
+  const {
+    data: materialOwnerData = { data: [], total: 0 },
+    isFetching: isFetchingMaterialOwner,
+  } = useQuery({
+    queryKey: [
+      "MartialOwner",
+      {
+        search: debouncedMaterialOwnerSearch,
+        page: materialOwnerPage,
+        limit: itemsPerPage,
+      },
+    ],
+    queryFn: getMartialOwnerDropDownApi,
+    keepPreviousData: true,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const warehouseList = warehouseResponse?.data || [];
   const inventoryList = railHeadData?.data || [];
   const consignorList = consignorData?.data || [];
   const consigneeList = consigneeData?.data || [];
+  const materialOwnerList = materialOwnerData?.data || [];
 
   const handleNumberInputScroll = (e) => {
     e.preventDefault();
     e.target.blur();
     return false;
+  };
+
+  // Helper function to show calculation hint
+  const getCalculationHint = (index, field) => {
+    const source = calculationSource[index];
+    if (!source) return null;
+
+    const product = formData.products[index];
+    const bagSize = parseFloat(product.bagSize);
+    const totalBags = parseInt(product.totalBags);
+    const quantityMT = parseFloat(product.quantityMT);
+
+    if (field === "bagSize" && source !== "bagSize" && bagSize > 0) {
+      return `Auto-calculated from ${quantityMT > 0 ? `${quantityMT} MT and ${totalBags} bags` : `${totalBags} bags and ${quantityMT} MT`}`;
+    }
+    if (field === "totalBags" && source !== "totalBags" && totalBags > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${quantityMT} MT` : `${bagSize} kg bags and ${quantityMT} MT`}`;
+    }
+    if (field === "quantityMT" && source !== "quantityMT" && quantityMT > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${totalBags} bags` : `${totalBags} bags and ${bagSize} kg bags`}`;
+    }
+    return null;
   };
 
   // Vehicle and Driver handlers
@@ -294,6 +397,24 @@ const WarehouseForm = ({
     }
   };
 
+  const handleMaterialOwnerChange = (selected) => {
+    if (selected) {
+      setFormData((prev) => ({
+        ...prev,
+        materialOwnerId: selected.value,
+        materialOwnerName: selected.name,
+        materialOwnerAddress: selected.address || "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        materialOwnerId: "",
+        materialOwnerName: "",
+        materialOwnerAddress: "",
+      }));
+    }
+  };
+
   const handleConsignorInputChange = useCallback((value) => {
     setConsignorSearchInput(value);
     setConsignorPage(1);
@@ -302,6 +423,11 @@ const WarehouseForm = ({
   const handleConsigneeInputChange = useCallback((value) => {
     setConsigneeSearchInput(value);
     setConsigneePage(1);
+  }, []);
+
+  const handleMaterialOwnerInputChange = useCallback((value) => {
+    setMaterialOwnerSearchInput(value);
+    setMaterialOwnerPage(1);
   }, []);
 
   const handleConsignorMenuScrollToBottom = useCallback(() => {
@@ -317,6 +443,15 @@ const WarehouseForm = ({
       setConsigneePage((prev) => prev + 1);
     }
   }, [consigneeData.total, consigneePage]);
+
+  const handleMaterialOwnerMenuScrollToBottom = useCallback(() => {
+    const totalPages = Math.ceil(
+      (materialOwnerData?.total || 0) / itemsPerPage,
+    );
+    if (materialOwnerPage < totalPages) {
+      setMaterialOwnerPage((prev) => prev + 1);
+    }
+  }, [materialOwnerData?.total, materialOwnerPage]);
 
   // Extract product details
   useEffect(() => {
@@ -430,6 +565,9 @@ const WarehouseForm = ({
         consigneeId: initialData.consigneeId || "",
         consigneeName: initialData.consigneeName || "",
         consigneeAddress: initialData.consigneeAddress || "",
+        materialOwnerId: initialData.materialOwnerId || "",
+        materialOwnerName: initialData.materialOwnerName || "",
+        materialOwnerAddress: initialData.materialOwnerAddress || "",
         receivedByType: receivedByType,
         products: initialData.products?.map((product) => ({
           ...defaultProduct,
@@ -621,6 +759,81 @@ const WarehouseForm = ({
       };
     }
 
+    const currentProduct = updatedProducts[index];
+    const bagSize = parseFloat(currentProduct.bagSize);
+    const totalBags = parseInt(currentProduct.totalBags);
+    const quantityMT = parseFloat(currentProduct.quantityMT);
+
+    // Track which field triggered the calculation
+    if (
+      field === "bagSize" ||
+      field === "totalBags" ||
+      field === "quantityMT"
+    ) {
+      setCalculationSource((prev) => ({ ...prev, [index]: field }));
+    }
+
+    // Perform calculations based on which field was changed
+    if (field === "bagSize" && value && !isNaN(bagSize) && bagSize > 0) {
+      if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      }
+    } else if (
+      field === "totalBags" &&
+      value &&
+      !isNaN(totalBags) &&
+      totalBags > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
+    } else if (
+      field === "quantityMT" &&
+      value &&
+      !isNaN(quantityMT) &&
+      quantityMT > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      } else if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
+    }
+
     if (
       field !== "warehouseId" &&
       formData.receivedByType === "warehouse" &&
@@ -775,20 +988,26 @@ const WarehouseForm = ({
       return baseProduct;
     });
 
+    const totalQuantity = calculateTotalQuantityMT();
+    const totalAmount = parseFloat(formData.totalAmount) || 0;
+    const totalTransporterAmount =
+      parseFloat(formData.totalTransporterAmount) || 0;
+
     const payload = {
       ...formData,
       tpPassType: "warehouse",
       companyId: formData.companyId || "",
+      materialOwnerId: formData.materialOwnerId || "",
+      materialOwnerName: formData.materialOwnerName || "",
+      materialOwnerAddress: formData.materialOwnerAddress || "",
       date: formData.date
         ? new Date(formData.date).toISOString()
         : new Date().toISOString(),
       products: preparedProducts,
       customerRate: processNumberField(formData.customerRate),
-      totalAmount: processNumberField(formData.totalAmount),
+      totalAmount: totalAmount,
       transporterRate: processNumberField(formData.transporterRate),
-      totalTransporterAmount: processNumberField(
-        formData.totalTransporterAmount,
-      ),
+      totalTransporterAmount: totalTransporterAmount,
       transporterRateOn: processNumberField(formData.transporterRateOn),
       customerRateOn: processNumberField(formData.customerRateOn),
       customerFreight: processNumberField(formData.customerFreight),
@@ -830,6 +1049,7 @@ const WarehouseForm = ({
     console.log("=== FINAL PAYLOAD ===", payload);
     console.log("=== VEHICLE EXISTS IN DB? ===", vehicleExistsInDb);
     console.log("=== DRIVER EXISTS IN DB? ===", driverExistsInDb);
+    console.log("=== TOTAL QUANTITY MT ===", totalQuantity);
     console.log("=== PRODUCTS DETAIL ===", payload.products);
 
     handleSubmit(payload);
@@ -886,7 +1106,6 @@ const WarehouseForm = ({
       }))
     : [];
 
-  // UPDATED: Removed "Create New" options from consignor and consignee dropdowns
   const consignorOptions = consignorList.map((consignor) => ({
     value: consignor.id,
     label: consignor.name,
@@ -899,6 +1118,13 @@ const WarehouseForm = ({
     label: consignee.name,
     name: consignee.name,
     address: consignee.address,
+  }));
+
+  const materialOwnerOptions = materialOwnerList.map((owner) => ({
+    value: owner.id,
+    label: owner.name,
+    name: owner.name,
+    address: owner.address || "",
   }));
 
   const getWarehouseValue = (product) => {
@@ -1004,6 +1230,15 @@ const WarehouseForm = ({
     );
   };
 
+  const getMaterialOwnerValue = () => {
+    if (!formData.materialOwnerId) return null;
+    return (
+      materialOwnerOptions.find(
+        (opt) => opt.value === formData.materialOwnerId,
+      ) || null
+    );
+  };
+
   const shouldShowWarehouseInProducts = () => {
     if (formData.issuedBy === "Railhead") {
       if (
@@ -1022,6 +1257,7 @@ const WarehouseForm = ({
   };
 
   const warehouseDisplayMode = shouldShowWarehouseInProducts();
+  const totalQuantity = calculateTotalQuantityMT();
 
   const getProductDetailForDisplay = (product) => {
     let productDetail;
@@ -1468,36 +1704,52 @@ const WarehouseForm = ({
                         </div>
                       </div>
 
-                      {/* Customer Details */}
+                      {/* Material Owner Details */}
                       <div>
                         <h5 className="font-semibold border-b pb-2 mb-3 text-gray-700">
-                          Customer Details
+                          Material Owner Details
                         </h5>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-1 gap-4 mb-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Customer Name
+                              Material Owner Name
                             </label>
-                            <input
-                              name="customerName"
-                              value={formData.customerName}
-                              onChange={handleChange}
-                              disabled={isLoading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            <Select
+                              value={getMaterialOwnerValue()}
+                              onChange={handleMaterialOwnerChange}
+                              options={materialOwnerOptions}
+                              placeholder="Select Material Owner"
+                              isClearable
+                              isLoading={isLoading || isFetchingMaterialOwner}
+                              onInputChange={handleMaterialOwnerInputChange}
+                              onMenuScrollToBottom={
+                                handleMaterialOwnerMenuScrollToBottom
+                              }
+                              filterOption={null}
+                              noOptionsMessage={({ inputValue }) =>
+                                inputValue
+                                  ? `No material owner found for "${inputValue}"`
+                                  : "Type to search material owner"
+                              }
                             />
+                            {isFetchingMaterialOwner && (
+                              <p className="text-blue-600 text-sm mt-1">
+                                Searching...
+                              </p>
+                            )}
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Customer Address
-                            </label>
-                            <input
-                              name="customerAddress"
-                              value={formData.customerAddress}
-                              onChange={handleChange}
-                              disabled={isLoading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                            />
-                          </div>
+                          {formData.materialOwnerAddress && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Material Owner Address
+                              </label>
+                              <input
+                                value={formData.materialOwnerAddress}
+                                readOnly
+                                className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1551,6 +1803,18 @@ const WarehouseForm = ({
                             );
                             const productDetail =
                               getProductDetailForDisplay(product);
+                            const quantityHint = getCalculationHint(
+                              index,
+                              "quantityMT",
+                            );
+                            const bagSizeHint = getCalculationHint(
+                              index,
+                              "bagSize",
+                            );
+                            const totalBagsHint = getCalculationHint(
+                              index,
+                              "totalBags",
+                            );
 
                             return (
                               <div
@@ -1724,7 +1988,7 @@ const WarehouseForm = ({
                                       }
                                       required
                                     />
-                                    {productDetail && (
+                                    {/* {productDetail && (
                                       <p className="text-blue-600 text-xs mt-1">
                                         <FaBox className="inline mr-1" />
                                         {productDetail.productName} • Available:{" "}
@@ -1732,7 +1996,7 @@ const WarehouseForm = ({
                                         Size: {productDetail.bagSize} kg • Total
                                         Bags: {productDetail.totalBags}
                                       </p>
-                                    )}
+                                    )} */}
                                   </div>
 
                                   {/* Total Bags */}
@@ -1755,6 +2019,15 @@ const WarehouseForm = ({
                                       placeholder="Enter total bags"
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                     />
+                                    {/* {totalBagsHint && (
+                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                        <FaInfoCircle
+                                          className="mr-1"
+                                          size={10}
+                                        />
+                                        {totalBagsHint}
+                                      </p>
+                                    )} */}
                                   </div>
 
                                   {/* Bag Size */}
@@ -1776,7 +2049,17 @@ const WarehouseForm = ({
                                       disabled={isLoading}
                                       placeholder="Enter bag size"
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
+                                      readOnly
                                     />
+                                    {/* {bagSizeHint && (
+                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                        <FaInfoCircle
+                                          className="mr-1"
+                                          size={10}
+                                        />
+                                        {bagSizeHint}
+                                      </p>
+                                    )} */}
                                     <p className="text-gray-500 text-xs mt-1">
                                       Weight per bag in kilograms
                                     </p>
@@ -1806,11 +2089,84 @@ const WarehouseForm = ({
                                       step="0.01"
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                     />
+                                    {/* {quantityHint && (
+                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                        <FaInfoCircle
+                                          className="mr-1"
+                                          size={10}
+                                        />
+                                        {quantityHint}
+                                      </p>
+                                    )} */}
                                     <p className="text-gray-500 text-xs mt-1">
-                                      Enter quantity in Metric Ton
+                                      Enter quantity in Metric Ton (1 MT = 1000
+                                      kg)
                                     </p>
                                   </div>
                                 </div>
+
+                                {/* Show calculation formula example */}
+                                {(product.bagSize ||
+                                  product.totalBags ||
+                                  product.quantityMT) && (
+                                  <div className="mt-3 p-2 bg-gray-50 rounded text-xs">
+                                    <strong>Formula:</strong>
+                                    {product.bagSize &&
+                                      product.totalBags &&
+                                      !product.quantityMT && (
+                                        <span className="ml-1">
+                                          {product.bagSize} kg ×{" "}
+                                          {product.totalBags} bags ={" "}
+                                          {(
+                                            (product.bagSize *
+                                              product.totalBags) /
+                                            1000
+                                          ).toFixed(3)}{" "}
+                                          MT
+                                        </span>
+                                      )}
+                                    {product.bagSize &&
+                                      product.quantityMT &&
+                                      !product.totalBags && (
+                                        <span className="ml-1">
+                                          {product.quantityMT} MT × 1000 /{" "}
+                                          {product.bagSize} kg ={" "}
+                                          {Math.round(
+                                            (product.quantityMT * 1000) /
+                                              product.bagSize,
+                                          )}{" "}
+                                          bags
+                                        </span>
+                                      )}
+                                    {product.totalBags &&
+                                      product.quantityMT &&
+                                      !product.bagSize && (
+                                        <span className="ml-1">
+                                          {product.quantityMT} MT × 1000 /{" "}
+                                          {product.totalBags} bags ={" "}
+                                          {(
+                                            (product.quantityMT * 1000) /
+                                            product.totalBags
+                                          ).toFixed(2)}{" "}
+                                          kg/bag
+                                        </span>
+                                      )}
+                                    {product.bagSize &&
+                                      product.totalBags &&
+                                      product.quantityMT && (
+                                        <span className="ml-1">
+                                          {product.bagSize} kg ×{" "}
+                                          {product.totalBags} bags ={" "}
+                                          {(
+                                            (product.bagSize *
+                                              product.totalBags) /
+                                            1000
+                                          ).toFixed(3)}{" "}
+                                          MT
+                                        </span>
+                                      )}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1836,7 +2192,7 @@ const WarehouseForm = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Customer Rate
+                              Customer Rate (per MT) (₹)
                             </label>
                             <input
                               type="number"
@@ -1845,12 +2201,13 @@ const WarehouseForm = ({
                               onChange={handleChange}
                               onWheel={handleNumberInputScroll}
                               disabled={isLoading}
+                              placeholder="Rate per MT"
                               className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                             />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Total Amount
+                              Total Amount (₹)
                             </label>
                             <input
                               type="number"
@@ -1859,12 +2216,19 @@ const WarehouseForm = ({
                               onChange={handleChange}
                               onWheel={handleNumberInputScroll}
                               disabled={isLoading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
+                              readOnly
+                              className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm"
                             />
+                            {/* <p className="text-blue-600 text-xs mt-1">
+                              <FaInfoCircle className="inline mr-1" size={10} />
+                              Auto: {totalQuantity.toFixed(3)} MT ×{" "}
+                              {formData.customerRate || 0} ={" "}
+                              {formData.totalAmount || 0}
+                            </p> */}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Transporter Rate
+                              Transporter Rate (per MT) (₹)
                             </label>
                             <input
                               type="number"
@@ -1873,12 +2237,13 @@ const WarehouseForm = ({
                               onChange={handleChange}
                               onWheel={handleNumberInputScroll}
                               disabled={isLoading}
+                              placeholder="Rate per MT"
                               className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                             />
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Total Transporter Amount
+                              Total Transporter Amount (₹)
                             </label>
                             <input
                               type="number"
@@ -1887,8 +2252,15 @@ const WarehouseForm = ({
                               onChange={handleChange}
                               onWheel={handleNumberInputScroll}
                               disabled={isLoading}
-                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
+                              readOnly
+                              className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm"
                             />
+                            {/* <p className="text-blue-600 text-xs mt-1">
+                              <FaInfoCircle className="inline mr-1" size={10} />
+                              Auto: {totalQuantity.toFixed(3)} MT ×{" "}
+                              {formData.transporterRate || 0} ={" "}
+                              {formData.totalTransporterAmount || 0}
+                            </p> */}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -1920,7 +2292,7 @@ const WarehouseForm = ({
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Customer Freight
+                              Customer Freight (₹)
                             </label>
                             <input
                               type="number"
@@ -1934,7 +2306,7 @@ const WarehouseForm = ({
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Transporter Freight
+                              Transporter Freight (₹)
                             </label>
                             <input
                               type="number"

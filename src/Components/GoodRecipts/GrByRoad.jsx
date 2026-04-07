@@ -26,10 +26,32 @@ const defaultFormData = {
   products: [{ ...defaultProduct }],
 };
 
+// Calculate quantity in MT from bag size and total bags
+const calculateQuantityFromBags = (bagSize, totalBags) => {
+  if (!bagSize || !totalBags || bagSize <= 0 || totalBags <= 0) return "";
+  const quantityInMT = (bagSize * totalBags) / 1000;
+  return quantityInMT.toFixed(3);
+};
+
+// Calculate total bags from bag size and quantity in MT
+const calculateBagsFromQuantity = (bagSize, quantityMT) => {
+  if (!bagSize || !quantityMT || bagSize <= 0 || quantityMT <= 0) return "";
+  const totalBags = (quantityMT * 1000) / bagSize;
+  return Math.round(totalBags);
+};
+
+// Calculate bag size from total bags and quantity in MT
+const calculateBagSizeFromQuantityAndBags = (quantityMT, totalBags) => {
+  if (!quantityMT || !totalBags || quantityMT <= 0 || totalBags <= 0) return "";
+  const bagSize = (quantityMT * 1000) / totalBags;
+  return bagSize.toFixed(2);
+};
+
 const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
   const [formData, setFormData] = useState(defaultFormData);
   const [formErrors, setFormErrors] = useState({});
   const [warehouseSearch, setWarehouseSearch] = useState("");
+  const [calculationSource, setCalculationSource] = useState({});
   const warehouseSelectRef = useRef(null);
   const productSelectRefs = useRef([]);
 
@@ -70,8 +92,8 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     onSuccess: () => {
       toast.success("GR By Road added successfully!");
       queryClient.invalidateQueries({ queryKey: ["getGodownTP"] });
-      // Reset form and close if needed
       setFormData(defaultFormData);
+      setCalculationSource({});
       if (setShowForm) setShowForm(false);
       if (setSelectedFormType) setSelectedFormType(null);
     },
@@ -85,11 +107,32 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     e.target.blur();
   };
 
+  // Helper function to show calculation hint
+  const getCalculationHint = (index, field) => {
+    const source = calculationSource[index];
+    if (!source) return null;
+
+    const product = formData.products[index];
+    const bagSize = parseFloat(product.bagSize);
+    const totalBags = parseInt(product.totalBags);
+    const quantityMT = parseFloat(product.quantityMT);
+
+    if (field === "bagSize" && source !== "bagSize" && bagSize > 0) {
+      return `Auto-calculated from ${quantityMT > 0 ? `${quantityMT} MT and ${totalBags} bags` : `${totalBags} bags and ${quantityMT} MT`}`;
+    }
+    if (field === "totalBags" && source !== "totalBags" && totalBags > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${quantityMT} MT` : `${bagSize} kg bags and ${quantityMT} MT`}`;
+    }
+    if (field === "quantityMT" && source !== "quantityMT" && quantityMT > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${totalBags} bags` : `${totalBags} bags and ${bagSize} kg bags`}`;
+    }
+    return null;
+  };
+
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
 
     if (field === "productId") {
-      // Find the selected product from inventory list
       const selectedProduct = inventoryList.find((item) => item._id === value);
 
       updatedProducts[index] = {
@@ -102,6 +145,81 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
         ...updatedProducts[index],
         [field]: value,
       };
+    }
+
+    const currentProduct = updatedProducts[index];
+    const bagSize = parseFloat(currentProduct.bagSize);
+    const totalBags = parseInt(currentProduct.totalBags);
+    const quantityMT = parseFloat(currentProduct.quantityMT);
+
+    // Track which field triggered the calculation
+    if (
+      field === "bagSize" ||
+      field === "totalBags" ||
+      field === "quantityMT"
+    ) {
+      setCalculationSource((prev) => ({ ...prev, [index]: field }));
+    }
+
+    // Perform calculations based on which field was changed
+    if (field === "bagSize" && value && !isNaN(bagSize) && bagSize > 0) {
+      if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      }
+    } else if (
+      field === "totalBags" &&
+      value &&
+      !isNaN(totalBags) &&
+      totalBags > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
+    } else if (
+      field === "quantityMT" &&
+      value &&
+      !isNaN(quantityMT) &&
+      quantityMT > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      } else if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
     }
 
     setFormData((prev) => ({ ...prev, products: updatedProducts }));
@@ -125,22 +243,18 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
   const validateForm = () => {
     const errors = {};
 
-    // Validate warehouse selection
     if (!formData.warehouseId) {
       errors.warehouseId = "Warehouse selection is required";
     }
 
-    // Validate each product
     formData.products.forEach((product, index) => {
       if (!product.productId) {
-        errors[`productId_${index}`] = `Product selection for product ${
-          index + 1
-        } is required`;
+        errors[`productId_${index}`] =
+          `Product selection for product ${index + 1} is required`;
       }
       if (!product.quantityMT || parseFloat(product.quantityMT) <= 0) {
-        errors[`quantityMT_${index}`] = `Valid quantity for product ${
-          index + 1
-        } is required`;
+        errors[`quantityMT_${index}`] =
+          `Valid quantity for product ${index + 1} is required`;
       }
     });
 
@@ -157,10 +271,8 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
       return;
     }
 
-    // Get current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split("T")[0];
 
-    // Prepare payload for API with current date
     const payload = {
       tpPassType: formData.tpPassType,
       issuedBy: formData.issuedBy,
@@ -177,7 +289,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
       })),
     };
 
-    // Call mutation
     postGrByRoad(payload);
   };
 
@@ -196,17 +307,19 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     );
   };
 
-  // Handle warehouse selection with clearing
   const handleWarehouseSelect = (selected) => {
     setFormData((prev) => ({
       ...prev,
       warehouseId: selected ? selected.value : "",
     }));
 
-    // Clear warehouse error if exists
     if (formErrors.warehouseId) {
       setFormErrors((prev) => ({ ...prev, warehouseId: "" }));
     }
+  };
+
+  const handleWarehouseSearch = (searchValue) => {
+    setWarehouseSearch(searchValue);
   };
 
   // Prepare product options for React Select
@@ -237,12 +350,6 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
     return null;
   };
 
-  // Handle warehouse search
-  const handleWarehouseSearch = (searchValue) => {
-    setWarehouseSearch(searchValue);
-  };
-
-  // Handle product selection with clearing
   const handleProductSelect = (selected, index) => {
     if (selected === null) {
       const updatedProducts = [...formData.products];
@@ -253,14 +360,12 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
       };
       setFormData((prev) => ({ ...prev, products: updatedProducts }));
 
-      // Clear product error if exists
       if (formErrors[`productId_${index}`]) {
         setFormErrors((prev) => ({ ...prev, [`productId_${index}`]: "" }));
       }
       return;
     }
 
-    // Handle regular product selection
     const selectedProduct = inventoryList.find(
       (item) => item._id === selected?.value,
     );
@@ -275,17 +380,16 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
 
       setFormData((prev) => ({ ...prev, products: updatedProducts }));
 
-      // Clear product error if exists
       if (formErrors[`productId_${index}`]) {
         setFormErrors((prev) => ({ ...prev, [`productId_${index}`]: "" }));
       }
     }
   };
 
-  // Reset form
   const handleReset = () => {
     setFormData(defaultFormData);
     setFormErrors({});
+    setCalculationSource({});
   };
 
   // Warehouse dropdown styles
@@ -504,6 +608,16 @@ const GrByRoad = ({ setShowForm, setSelectedFormType }) => {
                   </div>
                 ) : (
                   formData.products.map((product, index) => {
+                    const quantityHint = getCalculationHint(
+                      index,
+                      "quantityMT",
+                    );
+                    const bagSizeHint = getCalculationHint(index, "bagSize");
+                    const totalBagsHint = getCalculationHint(
+                      index,
+                      "totalBags",
+                    );
+
                     const createProductStyles = (productIndex) => ({
                       control: (base, state) => ({
                         ...base,

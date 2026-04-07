@@ -12,6 +12,7 @@ import {
   getConsignorApi,
   getWarehouseListApi,
   getWarehouseProfileApi,
+  getMartialOwnerDropDownApi,
 } from "../../data/data";
 import {
   FaExchangeAlt,
@@ -21,6 +22,7 @@ import {
   FaTimes,
   FaPlus,
   FaTrash,
+  FaInfoCircle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 
@@ -30,7 +32,7 @@ const defaultProduct = {
   productId: "",
   productName: "",
   quantityMT: "",
-  bagSizeKg: "",
+  bagSize: "",
   totalBags: "",
 };
 
@@ -69,8 +71,9 @@ const defaultFormData = {
   consigneeId: "",
   consigneeName: "",
   consigneeAddress: "",
-  customerName: "",
-  customerAddress: "",
+  materialOwnerId: "",
+  materialOwnerName: "",
+  materialOwnerAddress: "",
   startLocation: "",
   endLocation: "",
   customerRate: "",
@@ -82,6 +85,27 @@ const defaultFormData = {
   customerFreight: "",
   transporterFreight: "",
   products: [{ ...defaultProduct }],
+};
+
+// Calculate quantity in MT from bag size and total bags
+const calculateQuantityFromBags = (bagSize, totalBags) => {
+  if (!bagSize || !totalBags || bagSize <= 0 || totalBags <= 0) return "";
+  const quantityInMT = (bagSize * totalBags) / 1000;
+  return quantityInMT.toFixed(3);
+};
+
+// Calculate total bags from bag size and quantity in MT
+const calculateBagsFromQuantity = (bagSize, quantityMT) => {
+  if (!bagSize || !quantityMT || bagSize <= 0 || quantityMT <= 0) return "";
+  const totalBags = (quantityMT * 1000) / bagSize;
+  return Math.round(totalBags);
+};
+
+// Calculate bag size from total bags and quantity in MT
+const calculateBagSizeFromQuantityAndBags = (quantityMT, totalBags) => {
+  if (!quantityMT || !totalBags || quantityMT <= 0 || totalBags <= 0) return "";
+  const bagSize = (quantityMT * 1000) / totalBags;
+  return bagSize.toFixed(2);
 };
 
 // Date parsing utility
@@ -156,20 +180,81 @@ const WarehouseToPartyForm = ({
   const [isCustomVehicle, setIsCustomVehicle] = useState(false);
   const [isCustomDriver, setIsCustomDriver] = useState(false);
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+  const [calculationSource, setCalculationSource] = useState({});
 
   // Search states
   const [consignorSearchInput, setConsignorSearchInput] = useState("");
   const [consigneeSearchInput, setConsigneeSearchInput] = useState("");
+  const [materialOwnerSearchInput, setMaterialOwnerSearchInput] = useState("");
 
   // Debounced search values
   const debouncedConsignorSearch = useDebounce(consignorSearchInput, 300);
   const debouncedConsigneeSearch = useDebounce(consigneeSearchInput, 300);
+  const debouncedMaterialOwnerSearch = useDebounce(
+    materialOwnerSearchInput,
+    300,
+  );
 
   const [consignorPage, setConsignorPage] = useState(1);
   const [consigneePage, setConsigneePage] = useState(1);
+  const [materialOwnerPage, setMaterialOwnerPage] = useState(1);
   const itemsPerPage = 20;
 
   const queryClient = useQueryClient();
+
+  // Calculate total quantity in MT across all products
+  const calculateTotalQuantityMT = useCallback(() => {
+    return formData.products.reduce((total, product) => {
+      const quantity = parseFloat(product.quantityMT) || 0;
+      return total + quantity;
+    }, 0);
+  }, [formData.products]);
+
+  // Auto-calculate total amount when customer rate or total quantity changes
+  useEffect(() => {
+    const totalQuantity = calculateTotalQuantityMT();
+    const customerRate = parseFloat(formData.customerRate) || 0;
+    const calculatedTotalAmount = totalQuantity * customerRate;
+
+    setFormData((prev) => ({
+      ...prev,
+      totalAmount: calculatedTotalAmount.toFixed(2),
+    }));
+  }, [formData.customerRate, formData.products, calculateTotalQuantityMT]);
+
+  // Auto-calculate total transporter amount when transporter rate or total quantity changes
+  useEffect(() => {
+    const totalQuantity = calculateTotalQuantityMT();
+    const transporterRate = parseFloat(formData.transporterRate) || 0;
+    const calculatedTotalTransporterAmount = totalQuantity * transporterRate;
+
+    setFormData((prev) => ({
+      ...prev,
+      totalTransporterAmount: calculatedTotalTransporterAmount.toFixed(2),
+    }));
+  }, [formData.transporterRate, formData.products, calculateTotalQuantityMT]);
+
+  // Helper function to show calculation hint
+  const getCalculationHint = (index, field) => {
+    const source = calculationSource[index];
+    if (!source) return null;
+
+    const product = formData.products[index];
+    const bagSize = parseFloat(product.bagSize);
+    const totalBags = parseInt(product.totalBags);
+    const quantityMT = parseFloat(product.quantityMT);
+
+    if (field === "bagSize" && source !== "bagSize" && bagSize > 0) {
+      return `Auto-calculated from ${quantityMT > 0 ? `${quantityMT} MT and ${totalBags} bags` : `${totalBags} bags and ${quantityMT} MT`}`;
+    }
+    if (field === "totalBags" && source !== "totalBags" && totalBags > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${quantityMT} MT` : `${bagSize} kg bags and ${quantityMT} MT`}`;
+    }
+    if (field === "quantityMT" && source !== "quantityMT" && quantityMT > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${totalBags} bags` : `${totalBags} bags and ${bagSize} kg bags`}`;
+    }
+    return null;
+  };
 
   const { data: companyList = [] } = useQuery({
     queryKey: ["companyList"],
@@ -221,6 +306,24 @@ const WarehouseToPartyForm = ({
     enabled: true,
   });
 
+  // Fetch Material Owner data
+  const {
+    data: materialOwnerData = { data: [], total: 0 },
+    isFetching: isFetchingMaterialOwner,
+  } = useQuery({
+    queryKey: [
+      "MartialOwner",
+      {
+        search: debouncedMaterialOwnerSearch,
+        page: materialOwnerPage,
+        limit: itemsPerPage,
+      },
+    ],
+    queryFn: getMartialOwnerDropDownApi,
+    keepPreviousData: true,
+    staleTime: 1000 * 60 * 5,
+  });
+
   // Fetch warehouse products when a warehouse is selected
   const {
     data: warehouseProductsResponse = {},
@@ -270,7 +373,7 @@ const WarehouseToPartyForm = ({
     inventoryList.forEach((product) => {
       const productId = product.productId;
       const productName = product.productName || "Unknown Product";
-      const bagSizeKg = product.bagSizeKg || 0;
+      const bagSize = product.bagSize || 0;
       const quantityMT = product.quantityMT || 0;
       const totalBags = product.totalBags || 0;
 
@@ -278,13 +381,13 @@ const WarehouseToPartyForm = ({
         return;
       }
 
-      const uniqueKey = `${productId}_${bagSizeKg}`;
+      const uniqueKey = `${productId}_${bagSize}`;
 
       if (!seenCombinations.has(uniqueKey)) {
         seenCombinations.add(uniqueKey);
 
         const label = `${productName} (Bag Size: ${
-          bagSizeKg || "0"
+          bagSize || "0"
         } kg, Available: ${quantityMT} kg, Total Bags: ${totalBags})`;
 
         options.push({
@@ -292,7 +395,7 @@ const WarehouseToPartyForm = ({
           label: label,
           productId: productId,
           productName: productName,
-          bagSizeKg: bagSizeKg,
+          bagSize: bagSize,
           quantityMT: quantityMT,
           totalBags: totalBags,
           originalProductData: product,
@@ -332,12 +435,10 @@ const WarehouseToPartyForm = ({
     if (mode === "edit" && initialData && !isInitialDataLoaded) {
       console.log("Loading initial data for edit:", initialData);
 
-      // Get warehouse info from products
       const firstProduct = initialData.products?.[0];
       const warehouseId = firstProduct?.warehouseId || "";
       const warehouseName = firstProduct?.warehouseName || "";
 
-      // Get vehicle name
       let vehicleName = "";
       if (initialData.vehicleName) {
         vehicleName = initialData.vehicleName;
@@ -346,7 +447,6 @@ const WarehouseToPartyForm = ({
         vehicleName = vehicle?.name || vehicle?.vehicleNumber || "";
       }
 
-      // Get driver name
       let driverName = "";
       if (initialData.driverName) {
         driverName = initialData.driverName;
@@ -364,6 +464,9 @@ const WarehouseToPartyForm = ({
         companyId: initialData.companyId || "",
         consignorId: initialData.consignorId || "",
         consigneeId: initialData.consigneeId || "",
+        materialOwnerId: initialData.materialOwnerId || "",
+        materialOwnerName: initialData.materialOwnerName || "",
+        materialOwnerAddress: initialData.materialOwnerAddress || "",
         issuedByWarehouseId: warehouseId,
         issuedByWarehouseName: warehouseName,
         products: initialData.products?.map((product) => {
@@ -371,10 +474,8 @@ const WarehouseToPartyForm = ({
             ...defaultProduct,
             ...product,
             quantityMT: product.quantityMT?.toString() || "",
-            bagSizeKg:
-              product.bagSize?.toString() ||
-              product.bagSizeKg?.toString() ||
-              "",
+            bagSize:
+              product.bagSize?.toString() || product.bagSize?.toString() || "",
             totalBags: product.totalBags?.toString() || "",
             warehouseId: product.warehouseId || "",
             warehouseName: product.warehouseName || "",
@@ -406,7 +507,7 @@ const WarehouseToPartyForm = ({
     ) {
       console.log(
         "Refetching warehouse products for ID:",
-        formData.issuedByWarehouseId
+        formData.issuedByWarehouseId,
       );
       refetchWarehouseProducts();
     }
@@ -423,7 +524,7 @@ const WarehouseToPartyForm = ({
       const selectedWarehouse = warehouseList.find(
         (w) =>
           w.id === formData.issuedByWarehouseId ||
-          w._id === formData.issuedByWarehouseId
+          w._id === formData.issuedByWarehouseId,
       );
 
       const updatedProducts = formData.products.map((product) => ({
@@ -496,7 +597,7 @@ const WarehouseToPartyForm = ({
         setIsCustomVehicle(true);
       } else {
         const selectedVehicle = vehicles.find(
-          (v) => v.id === selected.value || v._id === selected.value
+          (v) => v.id === selected.value || v._id === selected.value,
         );
         setFormData((prev) => ({
           ...prev,
@@ -585,12 +686,31 @@ const WarehouseToPartyForm = ({
     }
   };
 
+  // Handle material owner selection
+  const handleMaterialOwnerChange = (selected) => {
+    if (selected) {
+      setFormData((prev) => ({
+        ...prev,
+        materialOwnerId: selected.value,
+        materialOwnerName: selected.name,
+        materialOwnerAddress: selected.address || "",
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        materialOwnerId: "",
+        materialOwnerName: "",
+        materialOwnerAddress: "",
+      }));
+    }
+  };
+
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
 
     if (field === "warehouseId") {
       const selectedWarehouse = warehouseList.find(
-        (w) => w.id === value || w._id === value
+        (w) => w.id === value || w._id === value,
       );
       updatedProducts[index] = {
         ...updatedProducts[index],
@@ -607,7 +727,7 @@ const WarehouseToPartyForm = ({
           productId: selectedOption.productId,
           productName: selectedOption.productName || "Unknown Product",
           quantityMT: selectedOption.quantityMT?.toString() || "",
-          bagSizeKg: selectedOption.bagSizeKg?.toString() || "",
+          bagSize: selectedOption.bagSize?.toString() || "",
           totalBags: selectedOption.totalBags?.toString() || "",
         };
       }
@@ -616,6 +736,81 @@ const WarehouseToPartyForm = ({
         ...updatedProducts[index],
         [field]: value,
       };
+    }
+
+    const currentProduct = updatedProducts[index];
+    const bagSize = parseFloat(currentProduct.bagSize);
+    const totalBags = parseInt(currentProduct.totalBags);
+    const quantityMT = parseFloat(currentProduct.quantityMT);
+
+    // Track which field triggered the calculation
+    if (
+      field === "bagSize" ||
+      field === "totalBags" ||
+      field === "quantityMT"
+    ) {
+      setCalculationSource((prev) => ({ ...prev, [index]: field }));
+    }
+
+    // Perform calculations based on which field was changed
+    if (field === "bagSize" && value && !isNaN(bagSize) && bagSize > 0) {
+      if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      }
+    } else if (
+      field === "totalBags" &&
+      value &&
+      !isNaN(totalBags) &&
+      totalBags > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
+    } else if (
+      field === "quantityMT" &&
+      value &&
+      !isNaN(quantityMT) &&
+      quantityMT > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      } else if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
     }
 
     setFormData((prev) => ({ ...prev, products: updatedProducts }));
@@ -655,6 +850,11 @@ const WarehouseToPartyForm = ({
       return;
     }
 
+    const totalQuantity = calculateTotalQuantityMT();
+    const totalAmount = parseFloat(formData.totalAmount) || 0;
+    const totalTransporterAmount =
+      parseFloat(formData.totalTransporterAmount) || 0;
+
     const payload = {
       ...formData,
       tpPassType: "warehouseToParty",
@@ -662,34 +862,36 @@ const WarehouseToPartyForm = ({
       warehouseId: formData.issuedByWarehouseId || "",
       consignorId: formData.consignorId || "",
       consigneeId: formData.consigneeId || "",
+      materialOwnerId: formData.materialOwnerId || "",
+      materialOwnerName: formData.materialOwnerName || "",
+      materialOwnerAddress: formData.materialOwnerAddress || "",
       date: formData.date
         ? new Date(formData.date).toISOString()
         : new Date().toISOString(),
       customerRate: parseFloat(formData.customerRate) || 0,
-      totalAmount: parseFloat(formData.totalAmount) || 0,
+      totalAmount: totalAmount,
       transporterRate: parseFloat(formData.transporterRate) || 0,
-      totalTransporterAmount: parseFloat(formData.totalTransporterAmount) || 0,
+      totalTransporterAmount: totalTransporterAmount,
       transporterRateOn: parseFloat(formData.transporterRateOn) || 0,
       customerRateOn: parseFloat(formData.customerRateOn) || 0,
       customerFreight: parseFloat(formData.customerFreight) || 0,
       transporterFreight: parseFloat(formData.transporterFreight) || 0,
       products: formData.products.map((product) => {
         const transformedProduct = {
-          ...product,
+          productId: product.productId,
+          productName: product.productName,
+          warehouseId: product.warehouseId || formData.issuedByWarehouseId,
+          warehouseName:
+            product.warehouseName || formData.issuedByWarehouseName,
           quantityMT: parseFloat(product.quantityMT) || 0,
-          bagSize: parseFloat(product.bagSizeKg) || 0,
+          bagSize: parseFloat(product.bagSize) || 0,
           totalBags: parseFloat(product.totalBags) || 0,
         };
-
-        delete transformedProduct.bagSizeKg;
-        delete transformedProduct.costPerBag;
-        delete transformedProduct.itemCost;
-
         return transformedProduct;
       }),
     };
 
-    delete payload.bagSizeKg;
+    delete payload.bagSize;
     delete payload.workerId;
     delete payload.workerName;
     delete payload.costPerBag;
@@ -718,6 +920,7 @@ const WarehouseToPartyForm = ({
     }
 
     console.log("Submitting payload:", payload);
+    console.log("Total Quantity MT:", totalQuantity);
     handleSubmit(payload);
   };
 
@@ -731,7 +934,6 @@ const WarehouseToPartyForm = ({
     label: c.companyName || c.name || "Unnamed Company",
   }));
 
-  // UPDATED: Removed "Create New" options from consignor and consignee dropdowns
   const consignorOptions = consignorData.data.map((consignor) => ({
     value: consignor.id,
     label: consignor.name,
@@ -745,6 +947,14 @@ const WarehouseToPartyForm = ({
     name: consignee.name,
     address: consignee.address,
   }));
+
+  const materialOwnerOptions =
+    materialOwnerData?.data?.map((owner) => ({
+      value: owner.id,
+      label: owner.name,
+      name: owner.name,
+      address: owner.address || "",
+    })) || [];
 
   const vehicleOptions = Array.isArray(vehicles)
     ? vehicles.map((v) => ({
@@ -764,7 +974,7 @@ const WarehouseToPartyForm = ({
     if (formData.vehicleName) {
       if (formData.vehicleId && !isCustomVehicle) {
         const existingVehicle = vehicleOptions.find(
-          (opt) => opt.value === formData.vehicleId
+          (opt) => opt.value === formData.vehicleId,
         );
         if (existingVehicle) {
           return existingVehicle;
@@ -777,7 +987,7 @@ const WarehouseToPartyForm = ({
     }
     if (formData.vehicleId && vehicleOptions.length > 0) {
       const existingVehicle = vehicleOptions.find(
-        (opt) => opt.value === formData.vehicleId
+        (opt) => opt.value === formData.vehicleId,
       );
       if (existingVehicle) {
         return existingVehicle;
@@ -790,7 +1000,7 @@ const WarehouseToPartyForm = ({
     if (formData.driverName) {
       if (formData.driverId && !isCustomDriver) {
         const existingDriver = driverOptions.find(
-          (opt) => opt.value === formData.driverId
+          (opt) => opt.value === formData.driverId,
         );
         if (existingDriver) {
           return existingDriver;
@@ -803,7 +1013,7 @@ const WarehouseToPartyForm = ({
     }
     if (formData.driverId && driverOptions.length > 0) {
       const existingDriver = driverOptions.find(
-        (opt) => opt.value === formData.driverId
+        (opt) => opt.value === formData.driverId,
       );
       if (existingDriver) {
         return existingDriver;
@@ -822,26 +1032,26 @@ const WarehouseToPartyForm = ({
   const getProductValue = (product) => {
     if (!product.productId) return null;
 
-    if (product.bagSizeKg) {
-      const uniqueKey = `${product.productId}_${product.bagSizeKg}`;
+    if (product.bagSize) {
+      const uniqueKey = `${product.productId}_${product.bagSize}`;
       const foundOption = productOptions.find((opt) => opt.value === uniqueKey);
       if (foundOption) return foundOption;
     }
 
     const foundOption = productOptions.find(
-      (opt) => opt.productId === product.productId
+      (opt) => opt.productId === product.productId,
     );
     if (foundOption) return foundOption;
 
-    if (product.productId && product.productName && product.bagSizeKg) {
+    if (product.productId && product.productName && product.bagSize) {
       return {
-        value: `${product.productId}_${product.bagSizeKg || "0"}`,
+        value: `${product.productId}_${product.bagSize || "0"}`,
         label: `${product.productName} (Bag Size: ${
-          product.bagSizeKg || "0"
+          product.bagSize || "0"
         } kg)`,
         productId: product.productId,
         productName: product.productName,
-        bagSizeKg: product.bagSizeKg || "0",
+        bagSize: product.bagSize || "0",
         quantityMT: product.quantityMT || "",
         totalBags: product.totalBags || "",
       };
@@ -861,7 +1071,7 @@ const WarehouseToPartyForm = ({
     if (!formData.issuedByWarehouseId) return null;
     return (
       warehouseOptions.find(
-        (opt) => opt.value === formData.issuedByWarehouseId
+        (opt) => opt.value === formData.issuedByWarehouseId,
       ) || null
     );
   };
@@ -882,6 +1092,15 @@ const WarehouseToPartyForm = ({
     );
   };
 
+  const getMaterialOwnerValue = () => {
+    if (!formData.materialOwnerId) return null;
+    return (
+      materialOwnerOptions.find(
+        (opt) => opt.value === formData.materialOwnerId,
+      ) || null
+    );
+  };
+
   const handleConsignorInputChange = useCallback((value) => {
     setConsignorSearchInput(value);
     setConsignorPage(1);
@@ -890,6 +1109,11 @@ const WarehouseToPartyForm = ({
   const handleConsigneeInputChange = useCallback((value) => {
     setConsigneeSearchInput(value);
     setConsigneePage(1);
+  }, []);
+
+  const handleMaterialOwnerInputChange = useCallback((value) => {
+    setMaterialOwnerSearchInput(value);
+    setMaterialOwnerPage(1);
   }, []);
 
   const handleConsignorMenuScrollToBottom = useCallback(() => {
@@ -906,13 +1130,24 @@ const WarehouseToPartyForm = ({
     }
   }, [consigneeData.total, consigneePage]);
 
+  const handleMaterialOwnerMenuScrollToBottom = useCallback(() => {
+    const totalPages = Math.ceil(
+      (materialOwnerData?.total || 0) / itemsPerPage,
+    );
+    if (materialOwnerPage < totalPages) {
+      setMaterialOwnerPage((prev) => prev + 1);
+    }
+  }, [materialOwnerData?.total, materialOwnerPage]);
+
+  const totalQuantity = calculateTotalQuantityMT();
+
   if (!show) return null;
 
   return (
     <>
-      {/* Modal Overlay - FIXED: Reduced opacity so form is visible */}
+      {/* Modal Overlay */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Semi-transparent backdrop - REDUCED OPACITY */}
+        {/* Semi-transparent backdrop */}
         <div
           className="absolute inset-0 bg-black bg-opacity-30"
           onClick={handleClose}
@@ -997,7 +1232,7 @@ const WarehouseToPartyForm = ({
                           const selectedWarehouse = warehouseList.find(
                             (w) =>
                               w.id === selected.value ||
-                              w._id === selected.value
+                              w._id === selected.value,
                           );
                           const warehouseName =
                             selectedWarehouse?.wareHouseName ||
@@ -1020,7 +1255,7 @@ const WarehouseToPartyForm = ({
                                   warehouseName: warehouseName,
                                   productId: product.productId || "",
                                   productName: product.productName || "",
-                                })
+                                }),
                               );
                             }
 
@@ -1108,7 +1343,7 @@ const WarehouseToPartyForm = ({
                       onChange={(selected) => {
                         if (selected) {
                           const selectedCompany = companyList.find(
-                            (c) => c.id === selected.value
+                            (c) => c.id === selected.value,
                           );
                           setFormData((prev) => ({
                             ...prev,
@@ -1298,38 +1533,53 @@ const WarehouseToPartyForm = ({
                 </div>
               </div>
 
-              {/* Customer Details */}
+              {/* Material Owner Details */}
               <div>
                 <h5 className="font-bold text-gray-800 text-lg mb-4 pb-2 border-b">
-                  Customer Details
+                  Material Owner Details
                 </h5>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Customer Name
+                      Material Owner Name
                     </label>
-                    <input
-                      name="customerName"
-                      value={formData.customerName}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                      placeholder="Enter customer name"
+                    <Select
+                      value={getMaterialOwnerValue()}
+                      onChange={handleMaterialOwnerChange}
+                      options={materialOwnerOptions}
+                      placeholder="Select Material Owner"
+                      isClearable
+                      isLoading={isFetchingMaterialOwner}
+                      onInputChange={handleMaterialOwnerInputChange}
+                      onMenuScrollToBottom={
+                        handleMaterialOwnerMenuScrollToBottom
+                      }
+                      filterOption={null}
+                      noOptionsMessage={({ inputValue }) =>
+                        inputValue
+                          ? `No material owner found for "${inputValue}"`
+                          : "Type to search material owner"
+                      }
                     />
+                    {isFetchingMaterialOwner && (
+                      <div className="mt-2 flex items-center text-blue-600 text-sm">
+                        <span className="inline-block animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-2"></span>
+                        Searching material owners...
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Customer Address
-                    </label>
-                    <input
-                      name="customerAddress"
-                      value={formData.customerAddress}
-                      onChange={handleChange}
-                      disabled={isLoading}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                      placeholder="Enter customer address"
-                    />
-                  </div>
+                  {formData.materialOwnerAddress && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Material Owner Address
+                      </label>
+                      <input
+                        value={formData.materialOwnerAddress}
+                        readOnly
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1392,6 +1642,24 @@ const WarehouseToPartyForm = ({
                   </div>
                 </div>
 
+                {/* Total Quantity Summary */}
+                {totalQuantity > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <div className="flex items-center">
+                      <FaWeight className="mr-3 text-green-600" />
+                      <div>
+                        <p className="text-green-800 font-medium">
+                          Total Quantity Summary
+                        </p>
+                        <p className="text-green-700 text-sm">
+                          Total {totalQuantity.toFixed(3)} MT across{" "}
+                          {formData.products.length} product(s)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Product Info Banner */}
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                   <div className="flex items-start">
@@ -1415,214 +1683,311 @@ const WarehouseToPartyForm = ({
 
                 {/* Product List */}
                 <div className="space-y-6">
-                  {formData.products.map((product, index) => (
-                    <div
-                      key={index}
-                      className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm"
-                    >
-                      <div className="flex justify-between items-center mb-5 pb-3 border-b">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                            <span className="text-blue-700 font-bold">
-                              {index + 1}
-                            </span>
+                  {formData.products.map((product, index) => {
+                    const quantityHint = getCalculationHint(
+                      index,
+                      "quantityMT",
+                    );
+                    const bagSizeHint = getCalculationHint(index, "bagSize");
+                    const totalBagsHint = getCalculationHint(
+                      index,
+                      "totalBags",
+                    );
+
+                    return (
+                      <div
+                        key={index}
+                        className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm"
+                      >
+                        <div className="flex justify-between items-center mb-5 pb-3 border-b">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                              <span className="text-blue-700 font-bold">
+                                {index + 1}
+                              </span>
+                            </div>
+                            <h6 className="text-base font-semibold text-gray-800">
+                              Product {index + 1}
+                            </h6>
                           </div>
-                          <h6 className="text-base font-semibold text-gray-800">
-                            Product {index + 1}
-                          </h6>
+                          {formData.products.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeProduct(index)}
+                              disabled={isLoading}
+                              className="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 flex items-center transition-colors"
+                            >
+                              <FaTrash className="mr-2" />
+                              Remove
+                            </button>
+                          )}
                         </div>
-                        {formData.products.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeProduct(index)}
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 flex items-center transition-colors"
-                          >
-                            <FaTrash className="mr-2" />
-                            Remove
-                          </button>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+                          {/* Warehouse - Auto-filled */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Warehouse
+                            </label>
+                            <input
+                              type="text"
+                              value={
+                                product.warehouseName ||
+                                formData.issuedByWarehouseName ||
+                                "Not selected"
+                              }
+                              disabled
+                              readOnly
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                            />
+                            <p className="text-xs text-gray-500 mt-2">
+                              Auto-filled from warehouse selection
+                            </p>
+                          </div>
+
+                          {/* Product Selection */}
+                          <div className="lg:col-span-2">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Product <span className="text-red-500">*</span>
+                            </label>
+                            <Select
+                              key={`product-select-${index}-${
+                                product.productId || "empty"
+                              }`}
+                              value={getProductValue(product)}
+                              onChange={(selected) => {
+                                if (selected) {
+                                  const updatedProduct = {
+                                    ...product,
+                                    productId: selected.productId,
+                                    productName:
+                                      selected.productName || "Unknown Product",
+                                    quantityMT:
+                                      selected.quantityMT?.toString() || "",
+                                    bagSize:
+                                      selected.bagSize?.toString() || "0",
+                                    totalBags:
+                                      selected.totalBags?.toString() || "",
+                                  };
+
+                                  const updatedProducts = [
+                                    ...formData.products,
+                                  ];
+                                  updatedProducts[index] = updatedProduct;
+
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    products: updatedProducts,
+                                  }));
+                                } else {
+                                  const updatedProducts = [
+                                    ...formData.products,
+                                  ];
+                                  updatedProducts[index] = {
+                                    ...product,
+                                    productId: "",
+                                    productName: "",
+                                    quantityMT: "",
+                                    bagSize: "",
+                                    totalBags: "",
+                                  };
+
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    products: updatedProducts,
+                                  }));
+                                }
+                              }}
+                              options={productOptions}
+                              placeholder={
+                                isLoadingWarehouseProducts
+                                  ? "Loading products..."
+                                  : !formData.issuedByWarehouseId
+                                    ? "Select a warehouse first"
+                                    : isError
+                                      ? "Error loading products"
+                                      : productOptions.length === 0
+                                        ? "No products in this warehouse"
+                                        : "Select product"
+                              }
+                              isClearable
+                              isLoading={
+                                isLoadingWarehouseProducts || isLoading
+                              }
+                              isDisabled={
+                                !formData.issuedByWarehouseId ||
+                                isLoadingWarehouseProducts ||
+                                isLoading ||
+                                isError
+                              }
+                              required
+                            />
+                          </div>
+
+                          {/* Total Bags */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Total Bags
+                            </label>
+                            <input
+                              type="number"
+                              value={product.totalBags}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "totalBags",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={isLoading}
+                              placeholder="Enter bags"
+                              min="0"
+                              onWheel={handleNumberInputWheel}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            />
+                            {totalBagsHint && (
+                              <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                <FaInfoCircle className="mr-1" size={10} />
+                                {totalBagsHint}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              Total number of bags
+                            </p>
+                          </div>
+
+                          {/* Bag Size */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Bag Size (kg)
+                            </label>
+                            <input
+                              type="number"
+                              value={product.bagSize}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "bagSize",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={isLoading}
+                              placeholder="Enter size"
+                              min="0"
+                              step="0.01"
+                              onWheel={handleNumberInputWheel}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            />
+                            {bagSizeHint && (
+                              <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                <FaInfoCircle className="mr-1" size={10} />
+                                {bagSizeHint}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              Weight per bag in kg
+                            </p>
+                          </div>
+
+                          {/* Quantity */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              Quantity (MT){" "}
+                              <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={product.quantityMT}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "quantityMT",
+                                  e.target.value,
+                                )
+                              }
+                              disabled={isLoading}
+                              placeholder="Enter quantity"
+                              min="0.001"
+                              step="0.001"
+                              required
+                              onWheel={handleNumberInputWheel}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            />
+                            {quantityHint && (
+                              <p className="text-blue-600 text-xs mt-1 flex items-center">
+                                <FaInfoCircle className="mr-1" size={10} />
+                                {quantityHint}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                              Quantity in metric tons (1 MT = 1000 kg)
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Show calculation formula example */}
+                        {(product.bagSize ||
+                          product.totalBags ||
+                          product.quantityMT) && (
+                          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs">
+                            <strong className="text-gray-700">Formula:</strong>
+                            {product.bagSize &&
+                              product.totalBags &&
+                              !product.quantityMT && (
+                                <span className="ml-1 text-gray-600">
+                                  {product.bagSize} kg × {product.totalBags}{" "}
+                                  bags ={" "}
+                                  {(
+                                    (product.bagSize * product.totalBags) /
+                                    1000
+                                  ).toFixed(3)}{" "}
+                                  MT
+                                </span>
+                              )}
+                            {product.bagSize &&
+                              product.quantityMT &&
+                              !product.totalBags && (
+                                <span className="ml-1 text-gray-600">
+                                  {product.quantityMT} MT × 1000 /{" "}
+                                  {product.bagSize} kg ={" "}
+                                  {Math.round(
+                                    (product.quantityMT * 1000) /
+                                      product.bagSize,
+                                  )}{" "}
+                                  bags
+                                </span>
+                              )}
+                            {product.totalBags &&
+                              product.quantityMT &&
+                              !product.bagSize && (
+                                <span className="ml-1 text-gray-600">
+                                  {product.quantityMT} MT × 1000 /{" "}
+                                  {product.totalBags} bags ={" "}
+                                  {(
+                                    (product.quantityMT * 1000) /
+                                    product.totalBags
+                                  ).toFixed(2)}{" "}
+                                  kg/bag
+                                </span>
+                              )}
+                            {product.bagSize &&
+                              product.totalBags &&
+                              product.quantityMT && (
+                                <span className="ml-1 text-gray-600">
+                                  {product.bagSize} kg × {product.totalBags}{" "}
+                                  bags ={" "}
+                                  {(
+                                    (product.bagSize * product.totalBags) /
+                                    1000
+                                  ).toFixed(3)}{" "}
+                                  MT
+                                </span>
+                              )}
+                          </div>
                         )}
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-                        {/* Warehouse - Auto-filled */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Warehouse
-                          </label>
-                          <input
-                            type="text"
-                            value={
-                              product.warehouseName ||
-                              formData.issuedByWarehouseName ||
-                              "Not selected"
-                            }
-                            disabled
-                            readOnly
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Auto-filled from warehouse selection
-                          </p>
-                        </div>
-
-                        {/* Product Selection */}
-                        <div className="lg:col-span-2">
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Product <span className="text-red-500">*</span>
-                          </label>
-                          <Select
-                            key={`product-select-${index}-${
-                              product.productId || "empty"
-                            }`}
-                            value={getProductValue(product)}
-                            onChange={(selected) => {
-                              if (selected) {
-                                const updatedProduct = {
-                                  ...product,
-                                  productId: selected.productId,
-                                  productName:
-                                    selected.productName || "Unknown Product",
-                                  quantityMT:
-                                    selected.quantityMT?.toString() || "",
-                                  bagSizeKg:
-                                    selected.bagSizeKg?.toString() || "0",
-                                  totalBags:
-                                    selected.totalBags?.toString() || "",
-                                };
-
-                                const updatedProducts = [...formData.products];
-                                updatedProducts[index] = updatedProduct;
-
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  products: updatedProducts,
-                                }));
-                              } else {
-                                const updatedProducts = [...formData.products];
-                                updatedProducts[index] = {
-                                  ...product,
-                                  productId: "",
-                                  productName: "",
-                                  quantityMT: "",
-                                  bagSizeKg: "",
-                                  totalBags: "",
-                                };
-
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  products: updatedProducts,
-                                }));
-                              }
-                            }}
-                            options={productOptions}
-                            placeholder={
-                              isLoadingWarehouseProducts
-                                ? "Loading products..."
-                                : !formData.issuedByWarehouseId
-                                ? "Select a warehouse first"
-                                : isError
-                                ? "Error loading products"
-                                : productOptions.length === 0
-                                ? "No products in this warehouse"
-                                : "Select product"
-                            }
-                            isClearable
-                            isLoading={isLoadingWarehouseProducts || isLoading}
-                            isDisabled={
-                              !formData.issuedByWarehouseId ||
-                              isLoadingWarehouseProducts ||
-                              isLoading ||
-                              isError
-                            }
-                            required
-                          />
-                        </div>
-
-                        {/* Total Bags */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Total Bags
-                          </label>
-                          <input
-                            type="number"
-                            value={product.totalBags}
-                            onChange={(e) =>
-                              handleProductChange(
-                                index,
-                                "totalBags",
-                                e.target.value
-                              )
-                            }
-                            disabled={isLoading}
-                            placeholder="Enter bags"
-                            min="0"
-                            onWheel={handleNumberInputWheel}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Total number of bags
-                          </p>
-                        </div>
-
-                        {/* Bag Size */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Bag Size (kg)
-                          </label>
-                          <input
-                            type="number"
-                            value={product.bagSizeKg}
-                            onChange={(e) =>
-                              handleProductChange(
-                                index,
-                                "bagSizeKg",
-                                e.target.value
-                              )
-                            }
-                            disabled={isLoading}
-                            placeholder="Enter size"
-                            min="0"
-                            step="0.01"
-                            onWheel={handleNumberInputWheel}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Weight per bag in kg
-                          </p>
-                        </div>
-
-                        {/* Quantity */}
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Quantity (MT){" "}
-                            <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={product.quantityMT}
-                            onChange={(e) =>
-                              handleProductChange(
-                                index,
-                                "quantityMT",
-                                e.target.value
-                              )
-                            }
-                            disabled={isLoading}
-                            placeholder="Enter quantity"
-                            min="0.001"
-                            step="0.001"
-                            required
-                            onWheel={handleNumberInputWheel}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">
-                            Quantity in metric tons
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Add Product Button */}
                   <div className="flex justify-center">
@@ -1645,38 +2010,131 @@ const WarehouseToPartyForm = ({
                   Freight Details
                 </h5>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[
-                    { label: "Customer Rate (₹)", name: "customerRate" },
-                    { label: "Total Amount (₹)", name: "totalAmount" },
-                    { label: "Transporter Rate (₹)", name: "transporterRate" },
-                    {
-                      label: "Total Transporter Amount (₹)",
-                      name: "totalTransporterAmount",
-                    },
-                    { label: "Transporter Rate On", name: "transporterRateOn" },
-                    { label: "Customer Rate On", name: "customerRateOn" },
-                    { label: "Customer Freight (₹)", name: "customerFreight" },
-                    {
-                      label: "Transporter Freight (₹)",
-                      name: "transporterFreight",
-                    },
-                  ].map((field) => (
-                    <div key={field.name}>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        {field.label}
-                      </label>
-                      <input
-                        type="number"
-                        name={field.name}
-                        value={formData[field.name]}
-                        onChange={handleChange}
-                        disabled={isLoading}
-                        onWheel={handleNumberInputWheel}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                        placeholder={`Enter ${field.label.toLowerCase()}`}
-                      />
-                    </div>
-                  ))}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Customer Rate (per MT) (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="customerRate"
+                      value={formData.customerRate}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      placeholder="Enter rate per MT"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Total Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="totalAmount"
+                      value={formData.totalAmount}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      readOnly
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                    <p className="text-blue-600 text-xs mt-1">
+                      <FaInfoCircle className="inline mr-1" size={10} />
+                      Auto: {totalQuantity.toFixed(3)} MT ×{" "}
+                      {formData.customerRate || 0} = {formData.totalAmount || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Transporter Rate (per MT) (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="transporterRate"
+                      value={formData.transporterRate}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      placeholder="Enter rate per MT"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Total Transporter Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="totalTransporterAmount"
+                      value={formData.totalTransporterAmount}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      readOnly
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                    />
+                    <p className="text-blue-600 text-xs mt-1">
+                      <FaInfoCircle className="inline mr-1" size={10} />
+                      Auto: {totalQuantity.toFixed(3)} MT ×{" "}
+                      {formData.transporterRate || 0} ={" "}
+                      {formData.totalTransporterAmount || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Transporter Rate On
+                    </label>
+                    <input
+                      type="number"
+                      name="transporterRateOn"
+                      value={formData.transporterRateOn}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Customer Rate On
+                    </label>
+                    <input
+                      type="number"
+                      name="customerRateOn"
+                      value={formData.customerRateOn}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Customer Freight (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="customerFreight"
+                      value={formData.customerFreight}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Transporter Freight (₹)
+                    </label>
+                    <input
+                      type="number"
+                      name="transporterFreight"
+                      value={formData.transporterFreight}
+                      onChange={handleChange}
+                      disabled={isLoading}
+                      onWheel={handleNumberInputWheel}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                    />
+                  </div>
                 </div>
               </div>
 

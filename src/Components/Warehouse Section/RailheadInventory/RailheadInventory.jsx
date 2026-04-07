@@ -32,6 +32,8 @@ const RailheadIventory = () => {
   const columns = [
     { label: "Date", key: "createdAt", sortable: true },
     { label: "Product Name", key: "productName", sortable: true },
+    { label: "Bag Size", key: "bagSize", sortable: true },
+    { label: "Total Bags", key: "totalBags", sortable: true },
     { label: "Quantity(MT)", key: "quantityMT", sortable: true },
   ];
 

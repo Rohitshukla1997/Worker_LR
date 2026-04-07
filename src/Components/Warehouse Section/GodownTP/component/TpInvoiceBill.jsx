@@ -20,8 +20,8 @@ const TpInvoiceBill = ({ invoiceData }) => {
     consignorAddress,
     consigneeName,
     consigneeAddress,
-    customerName,
-    customerAddress,
+    materialOwner,
+    materialAddress,
     startLocation,
     endLocation,
     containerNumber,
@@ -162,7 +162,7 @@ const TpInvoiceBill = ({ invoiceData }) => {
                 <strong>Vehicle:</strong> {vehicleName || "N/A"}
               </p>
               <p>
-                <strong>Owner:</strong> {ownerName || companyName || "N/A"}
+                <strong>Material Owner:</strong> {materialOwner || "N/A"}
               </p>
             </div>
             <div className="details-row compact">
@@ -207,15 +207,15 @@ const TpInvoiceBill = ({ invoiceData }) => {
           </div>
         </div>
 
-        {/* Customer Details */}
+        {/* Material Owner Details */}
         <div className="section compact">
-          <h3>Customer Details</h3>
+          <h3>Material Owner Details</h3>
           <div className="details-row compact">
             <p>
-              <strong>Name:</strong> {customerName || "N/A"}
+              <strong>Name:</strong> {materialOwner || "N/A"}
             </p>
             <p>
-              <strong>Address:</strong> {customerAddress || "N/A"}
+              <strong>Address:</strong> {materialAddress || "N/A"}
             </p>
           </div>
         </div>
@@ -262,7 +262,7 @@ const TpInvoiceBill = ({ invoiceData }) => {
                     <strong>
                       {products.reduce(
                         (sum, p) => sum + (p.quantityMT || 0),
-                        0
+                        0,
                       )}
                     </strong>
                   </td>
@@ -359,7 +359,7 @@ const TpInvoiceBill = ({ invoiceData }) => {
             </div>
 
             <div className="signature-names">
-              <div
+              {/* <div
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -376,18 +376,18 @@ const TpInvoiceBill = ({ invoiceData }) => {
                     marginLeft: "10px",
                   }}
                 ></div>
-              </div>
+              </div> */}
               <div style={{ display: "flex", alignItems: "center" }}>
                 <strong style={{ fontSize: "11px", minWidth: "140px" }}>
                   Consignee Signature:
                 </strong>
-                <div
+                {/* <div
                   style={{
                     flex: 1,
                     borderBottom: "1px solid #000",
                     marginLeft: "10px",
                   }}
-                ></div>
+                ></div> */}
               </div>
             </div>
           </div>

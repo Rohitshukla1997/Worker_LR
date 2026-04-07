@@ -17,8 +17,8 @@ import {
 const defaultProduct = {
   productId: "",
   productName: "",
-  quantityMT: "", // Changed from quantityMT to quantityMt (Metric Tons)
-  bagSize: "", // Bag weight in kg
+  quantityMT: "",
+  bagSize: "",
   totalBags: "",
 };
 
@@ -29,9 +29,31 @@ const defaultFormData = {
   products: [{ ...defaultProduct }],
 };
 
+// Calculate quantity in MT from bag size and total bags
+const calculateQuantityFromBags = (bagSize, totalBags) => {
+  if (!bagSize || !totalBags || bagSize <= 0 || totalBags <= 0) return "";
+  const quantityInMT = (bagSize * totalBags) / 1000;
+  return quantityInMT.toFixed(3);
+};
+
+// Calculate total bags from bag size and quantity in MT
+const calculateBagsFromQuantity = (bagSize, quantityMT) => {
+  if (!bagSize || !quantityMT || bagSize <= 0 || quantityMT <= 0) return "";
+  const totalBags = (quantityMT * 1000) / bagSize;
+  return Math.round(totalBags);
+};
+
+// Calculate bag size from total bags and quantity in MT
+const calculateBagSizeFromQuantityAndBags = (quantityMT, totalBags) => {
+  if (!quantityMT || !totalBags || quantityMT <= 0 || totalBags <= 0) return "";
+  const bagSize = (quantityMT * 1000) / totalBags;
+  return bagSize.toFixed(2);
+};
+
 const GrByRail = ({ setShowForm, setSelectedFormType }) => {
   const [formData, setFormData] = useState(defaultFormData);
   const [formErrors, setFormErrors] = useState({});
+  const [calculationSource, setCalculationSource] = useState({});
 
   const queryClient = useQueryClient();
 
@@ -56,8 +78,8 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
     onSuccess: () => {
       toast.success("GR By Rail added successfully!");
       queryClient.invalidateQueries({ queryKey: ["getGodownTP"] });
-      // Reset form and close if needed
       setFormData(defaultFormData);
+      setCalculationSource({});
       if (setShowForm) setShowForm(false);
       if (setSelectedFormType) setSelectedFormType(null);
     },
@@ -74,11 +96,32 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
     }
   };
 
+  // Helper function to show calculation hint
+  const getCalculationHint = (index, field) => {
+    const source = calculationSource[index];
+    if (!source) return null;
+
+    const product = formData.products[index];
+    const bagSize = parseFloat(product.bagSize);
+    const totalBags = parseInt(product.totalBags);
+    const quantityMT = parseFloat(product.quantityMT);
+
+    if (field === "bagSize" && source !== "bagSize" && bagSize > 0) {
+      return `Auto-calculated from ${quantityMT > 0 ? `${quantityMT} MT and ${totalBags} bags` : `${totalBags} bags and ${quantityMT} MT`}`;
+    }
+    if (field === "totalBags" && source !== "totalBags" && totalBags > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${quantityMT} MT` : `${bagSize} kg bags and ${quantityMT} MT`}`;
+    }
+    if (field === "quantityMT" && source !== "quantityMT" && quantityMT > 0) {
+      return `Auto-calculated from ${bagSize > 0 ? `${bagSize} kg bags and ${totalBags} bags` : `${totalBags} bags and ${bagSize} kg bags`}`;
+    }
+    return null;
+  };
+
   const handleProductChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
 
     if (field === "productId") {
-      // Find the selected product from inventory list
       const selectedProduct = inventoryList.find((item) => item._id === value);
 
       updatedProducts[index] = {
@@ -91,6 +134,81 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
         ...updatedProducts[index],
         [field]: value,
       };
+    }
+
+    const currentProduct = updatedProducts[index];
+    const bagSize = parseFloat(currentProduct.bagSize);
+    const totalBags = parseInt(currentProduct.totalBags);
+    const quantityMT = parseFloat(currentProduct.quantityMT);
+
+    // Track which field triggered the calculation
+    if (
+      field === "bagSize" ||
+      field === "totalBags" ||
+      field === "quantityMT"
+    ) {
+      setCalculationSource((prev) => ({ ...prev, [index]: field }));
+    }
+
+    // Perform calculations based on which field was changed
+    if (field === "bagSize" && value && !isNaN(bagSize) && bagSize > 0) {
+      if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      }
+    } else if (
+      field === "totalBags" &&
+      value &&
+      !isNaN(totalBags) &&
+      totalBags > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedQuantity = calculateQuantityFromBags(
+          bagSize,
+          totalBags,
+        );
+        if (calculatedQuantity) {
+          updatedProducts[index].quantityMT = calculatedQuantity;
+        }
+      } else if (quantityMT && !isNaN(quantityMT) && quantityMT > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
+    } else if (
+      field === "quantityMT" &&
+      value &&
+      !isNaN(quantityMT) &&
+      quantityMT > 0
+    ) {
+      if (bagSize && !isNaN(bagSize) && bagSize > 0) {
+        const calculatedBags = calculateBagsFromQuantity(bagSize, quantityMT);
+        if (calculatedBags) {
+          updatedProducts[index].totalBags = calculatedBags;
+        }
+      } else if (totalBags && !isNaN(totalBags) && totalBags > 0) {
+        const calculatedBagSize = calculateBagSizeFromQuantityAndBags(
+          quantityMT,
+          totalBags,
+        );
+        if (calculatedBagSize) {
+          updatedProducts[index].bagSize = calculatedBagSize;
+        }
+      }
     }
 
     setFormData((prev) => ({ ...prev, products: updatedProducts }));
@@ -114,17 +232,14 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
   const validateForm = () => {
     const errors = {};
 
-    // Validate each product
     formData.products.forEach((product, index) => {
       if (!product.productId) {
-        errors[`productId_${index}`] = `Product selection for product ${
-          index + 1
-        } is required`;
+        errors[`productId_${index}`] =
+          `Product selection for product ${index + 1} is required`;
       }
       if (!product.quantityMT || parseFloat(product.quantityMT) <= 0) {
-        errors[`quantityMT_${index}`] = `Valid quantity for product ${
-          index + 1
-        } is required`;
+        errors[`quantityMT_${index}`] =
+          `Valid quantity for product ${index + 1} is required`;
       }
     });
 
@@ -141,15 +256,13 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
       return;
     }
 
-    // Get current date in YYYY-MM-DD format
     const currentDate = new Date().toISOString().split("T")[0];
 
-    // Prepare payload for API with current date
     const payload = {
       tpPassType: formData.tpPassType,
       issuedBy: formData.issuedBy,
       receivedBy: formData.receivedBy,
-      date: currentDate, // Add current date
+      date: currentDate,
       products: formData.products.map((product) => ({
         productId: product.productId,
         productName: product.productName || "",
@@ -159,10 +272,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
       })),
     };
 
-    // Debug: log the final payload
     console.log("Final API payload:", payload);
-
-    // Call mutation
     postGrByRail(payload);
   };
 
@@ -194,9 +304,7 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
     return null;
   };
 
-  // Handle product selection with clearing
   const handleProductSelect = (selected, index) => {
-    // If user clicks the clear (X) button, selected will be null
     if (selected === null) {
       const updatedProducts = [...formData.products];
       updatedProducts[index] = {
@@ -206,14 +314,12 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
       };
       setFormData((prev) => ({ ...prev, products: updatedProducts }));
 
-      // Clear product error if exists
       if (formErrors[`productId_${index}`]) {
         setFormErrors((prev) => ({ ...prev, [`productId_${index}`]: "" }));
       }
       return;
     }
 
-    // Handle regular product selection
     const selectedProduct = inventoryList.find(
       (item) => item._id === selected?.value,
     );
@@ -228,17 +334,16 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
 
       setFormData((prev) => ({ ...prev, products: updatedProducts }));
 
-      // Clear product error if exists
       if (formErrors[`productId_${index}`]) {
         setFormErrors((prev) => ({ ...prev, [`productId_${index}`]: "" }));
       }
     }
   };
 
-  // Reset form
   const handleReset = () => {
     setFormData(defaultFormData);
     setFormErrors({});
+    setCalculationSource({});
   };
 
   return (
@@ -334,206 +439,210 @@ const GrByRail = ({ setShowForm, setSelectedFormType }) => {
                     </div>
                   </div>
                 ) : (
-                  formData.products.map((product, index) => (
-                    <div
-                      key={index}
-                      className="mb-4 border rounded-lg overflow-hidden"
-                    >
-                      <div className="bg-gray-50 px-4 py-3 border-b">
-                        <div className="flex justify-between items-center">
-                          <h6 className="font-medium text-gray-800 m-0">
-                            Product {index + 1}
-                          </h6>
-                          {formData.products.length > 1 && (
-                            <button
-                              type="button"
-                              className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              onClick={() => removeProduct(index)}
-                              disabled={isSubmitting}
-                            >
-                              Remove
-                            </button>
-                          )}
+                  formData.products.map((product, index) => {
+                    const quantityHint = getCalculationHint(
+                      index,
+                      "quantityMT",
+                    );
+                    const bagSizeHint = getCalculationHint(index, "bagSize");
+                    const totalBagsHint = getCalculationHint(
+                      index,
+                      "totalBags",
+                    );
+
+                    return (
+                      <div
+                        key={index}
+                        className="mb-4 border rounded-lg overflow-hidden"
+                      >
+                        <div className="bg-gray-50 px-4 py-3 border-b">
+                          <div className="flex justify-between items-center">
+                            <h6 className="font-medium text-gray-800 m-0">
+                              Product {index + 1}
+                            </h6>
+                            {formData.products.length > 1 && (
+                              <button
+                                type="button"
+                                className="bg-red-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => removeProduct(index)}
+                                disabled={isSubmitting}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          {/* Product Selection Dropdown */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Select Product{" "}
-                              <span className="text-red-500">*</span>
-                            </label>
-                            <Select
-                              value={getProductValue(product.productId)}
-                              onChange={(selected) =>
-                                handleProductSelect(selected, index)
-                              }
-                              options={getProductOptions()}
-                              placeholder="Search and select product"
-                              isClearable
-                              isSearchable
-                              isLoading={inventoryLoading}
-                              isDisabled={isSubmitting}
-                              filterOption={(option, inputValue) => {
-                                if (!inputValue) return true;
-                                return option.label
-                                  .toLowerCase()
-                                  .includes(inputValue.toLowerCase());
-                              }}
-                              noOptionsMessage={({ inputValue }) =>
-                                inputValue
-                                  ? `No products found for "${inputValue}"`
-                                  : "No products available"
-                              }
-                              // Add menuPortalTarget and styles fix
-                              menuPortalTarget={document.body}
-                              styles={{
-                                control: (base, state) => ({
-                                  ...base,
-                                  borderColor: formErrors[`productId_${index}`]
-                                    ? "#ef4444"
-                                    : base.borderColor,
-                                  "&:hover": {
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            {/* Product Selection Dropdown */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Select Product{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <Select
+                                value={getProductValue(product.productId)}
+                                onChange={(selected) =>
+                                  handleProductSelect(selected, index)
+                                }
+                                options={getProductOptions()}
+                                placeholder="Search and select product"
+                                isClearable
+                                isSearchable
+                                isLoading={inventoryLoading}
+                                isDisabled={isSubmitting}
+                                filterOption={(option, inputValue) => {
+                                  if (!inputValue) return true;
+                                  return option.label
+                                    .toLowerCase()
+                                    .includes(inputValue.toLowerCase());
+                                }}
+                                noOptionsMessage={({ inputValue }) =>
+                                  inputValue
+                                    ? `No products found for "${inputValue}"`
+                                    : "No products available"
+                                }
+                                menuPortalTarget={document.body}
+                                styles={{
+                                  control: (base, state) => ({
+                                    ...base,
                                     borderColor: formErrors[
                                       `productId_${index}`
                                     ]
                                       ? "#ef4444"
                                       : base.borderColor,
-                                  },
-                                  minHeight: "42px",
-                                }),
-                                menuPortal: (base) => ({
-                                  ...base,
-                                  zIndex: 9999,
-                                }),
-                                menu: (base) => ({
-                                  ...base,
-                                  zIndex: 9999,
-                                  maxHeight: "250px",
-                                  overflowY: "auto",
-                                }),
-                                option: (base, state) => ({
-                                  ...base,
-                                  backgroundColor: state.isSelected
-                                    ? "#2563eb"
-                                    : state.isFocused
-                                      ? "#f3f4f6"
-                                      : base.backgroundColor,
-                                  color: state.isSelected
-                                    ? "white"
-                                    : base.color,
-                                }),
-                              }}
-                              className="react-select-container"
-                              classNamePrefix="react-select"
-                            />
-                            {formErrors[`productId_${index}`] && (
-                              <p className="mt-1 text-sm text-red-600">
-                                {formErrors[`productId_${index}`]}
-                              </p>
-                            )}
-                            {product.productName && (
-                              <p className="mt-1 text-sm text-gray-500">
-                                Selected: {product.productName}
-                              </p>
-                            )}
-                          </div>
+                                    "&:hover": {
+                                      borderColor: formErrors[
+                                        `productId_${index}`
+                                      ]
+                                        ? "#ef4444"
+                                        : base.borderColor,
+                                    },
+                                    minHeight: "42px",
+                                  }),
+                                  menuPortal: (base) => ({
+                                    ...base,
+                                    zIndex: 9999,
+                                  }),
+                                  menu: (base) => ({
+                                    ...base,
+                                    zIndex: 9999,
+                                    maxHeight: "250px",
+                                    overflowY: "auto",
+                                  }),
+                                  option: (base, state) => ({
+                                    ...base,
+                                    backgroundColor: state.isSelected
+                                      ? "#2563eb"
+                                      : state.isFocused
+                                        ? "#f3f4f6"
+                                        : base.backgroundColor,
+                                    color: state.isSelected
+                                      ? "white"
+                                      : base.color,
+                                  }),
+                                }}
+                                className="react-select-container"
+                                classNamePrefix="react-select"
+                              />
+                              {formErrors[`productId_${index}`] && (
+                                <p className="mt-1 text-sm text-red-600">
+                                  {formErrors[`productId_${index}`]}
+                                </p>
+                              )}
+                              {product.productName && (
+                                <p className="mt-1 text-sm text-gray-500">
+                                  Selected: {product.productName}
+                                </p>
+                              )}
+                            </div>
 
-                          {/* Bag Size (Kg per bag) - Optional */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Bag Size (kg)
-                            </label>
-                            <input
-                              type="number"
-                              value={product.bagSize}
-                              onChange={(e) =>
-                                handleProductChange(
-                                  index,
-                                  "bagSize",
-                                  e.target.value,
-                                )
-                              }
-                              onWheel={handleWheel}
-                              disabled={isSubmitting}
-                              placeholder="e.g., 50"
-                              min="0.01"
-                              step="0.01"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                            />
-                            <p className="mt-1 text-sm text-gray-500">
-                              Weight per bag in kilograms (Optional)
-                            </p>
-                          </div>
+                            {/* Bag Size (Kg per bag) */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Bag Size (kg)
+                              </label>
+                              <input
+                                type="number"
+                                value={product.bagSize}
+                                onChange={(e) =>
+                                  handleProductChange(
+                                    index,
+                                    "bagSize",
+                                    e.target.value,
+                                  )
+                                }
+                                onWheel={handleWheel}
+                                disabled={isSubmitting}
+                                placeholder="e.g., 50"
+                                min="0.01"
+                                step="0.01"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                              />
+                            </div>
 
-                          {/* Total Bags - Optional */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Total Bags
-                            </label>
-                            <input
-                              type="number"
-                              value={product.totalBags}
-                              onChange={(e) =>
-                                handleProductChange(
-                                  index,
-                                  "totalBags",
-                                  e.target.value,
-                                )
-                              }
-                              onWheel={handleWheel}
-                              disabled={isSubmitting}
-                              placeholder="e.g., 100"
-                              min="1"
-                              step="1"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                            />
-                            <p className="mt-1 text-sm text-gray-500">
-                              Total number of bags (Optional)
-                            </p>
-                          </div>
+                            {/* Total Bags */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Total Bags
+                              </label>
+                              <input
+                                type="number"
+                                value={product.totalBags}
+                                onChange={(e) =>
+                                  handleProductChange(
+                                    index,
+                                    "totalBags",
+                                    e.target.value,
+                                  )
+                                }
+                                onWheel={handleWheel}
+                                disabled={isSubmitting}
+                                placeholder="e.g., 100"
+                                min="1"
+                                step="1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                              />
+                            </div>
 
-                          {/* Quantity (Metric Tons) - Required */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Quantity (MT){" "}
-                              <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={product.quantityMT}
-                              onChange={(e) =>
-                                handleProductChange(
-                                  index,
-                                  "quantityMT",
-                                  e.target.value,
-                                )
-                              }
-                              onWheel={handleWheel}
-                              disabled={isSubmitting}
-                              placeholder="e.g., 5"
-                              min="0.001"
-                              step="0.001"
-                              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                formErrors[`quantityMT_${index}`]
-                                  ? "border-red-500"
-                                  : "border-gray-300"
-                              } disabled:bg-gray-100`}
-                            />
-                            {formErrors[`quantityMT_${index}`] && (
-                              <p className="mt-1 text-sm text-red-600">
-                                {formErrors[`quantityMT_${index}`]}
-                              </p>
-                            )}
-                            <p className="mt-1 text-sm text-gray-500">
-                              Enter quantity in metric tons
-                            </p>
+                            {/* Quantity (Metric Tons) - Required */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Quantity (MT){" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="number"
+                                value={product.quantityMT}
+                                onChange={(e) =>
+                                  handleProductChange(
+                                    index,
+                                    "quantityMT",
+                                    e.target.value,
+                                  )
+                                }
+                                onWheel={handleWheel}
+                                disabled={isSubmitting}
+                                placeholder="e.g., 5"
+                                min="0.001"
+                                step="0.001"
+                                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                  formErrors[`quantityMT_${index}`]
+                                    ? "border-red-500"
+                                    : "border-gray-300"
+                                } disabled:bg-gray-100`}
+                              />
+                              {formErrors[`quantityMT_${index}`] && (
+                                <p className="mt-1 text-sm text-red-600">
+                                  {formErrors[`quantityMT_${index}`]}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

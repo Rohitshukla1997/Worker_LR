@@ -12,7 +12,10 @@ import { FaExchangeAlt, FaEye, FaWarehouse, FaFilter } from "react-icons/fa";
 import WarehouseForm from "./component/WarehouseForm";
 import WarehouseToPartyForm from "./component/WarehouseToPartyForm";
 import TpInvoiceBill from "./component/TpInvoiceBill";
-import { getDigitalSignatureApi } from "../../TransportPass/data/data";
+import {
+  getCompanyNameApi,
+  getDigitalSignatureApi,
+} from "../../TransportPass/data/data";
 
 const GodownLr = () => {
   const [filteredData, setFilteredData] = useState([]);
@@ -38,6 +41,9 @@ const GodownLr = () => {
   // for consignee select
   const [selectedConsignee, setSelectedConsignee] = useState(null);
 
+  // for company select
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
   // Add status filter state
   const [selectedStatus, setSelectedStatus] = useState("All");
 
@@ -54,6 +60,7 @@ const GodownLr = () => {
   // Consignor and consignee options state
   const [consignorOptions, setConsignorOptions] = useState([]);
   const [consigneeOptions, setConsigneeOptions] = useState([]);
+  const [companyOptions, setCompanyOptions] = useState([]);
 
   const queryClient = useQueryClient();
 
@@ -107,6 +114,7 @@ const GodownLr = () => {
         limit: itemsPerPage,
         consignorId: selectedConsignor?.value || null,
         consigneeId: selectedConsignee?.value || null,
+        companyId: selectedCompany?.value || null,
         status: selectedStatus !== "All" ? selectedStatus : null,
       },
     ],
@@ -115,6 +123,23 @@ const GodownLr = () => {
     staleTime: 1000 * 60 * 30,
     cacheTime: 1000 * 60 * 10,
   });
+
+  // company fetch
+  const { data: companyList = [] } = useQuery({
+    queryKey: ["companyList"],
+    queryFn: getCompanyNameApi,
+  });
+
+  // Extract company options
+  useEffect(() => {
+    if (companyList && Array.isArray(companyList)) {
+      const companies = companyList.map((company) => ({
+        value: company.id || company._id,
+        label: company.companyName || company.name || "Unknown Company",
+      }));
+      setCompanyOptions(companies);
+    }
+  }, [companyList]);
 
   // Extract consignor and consignee options from fetched data
   useEffect(() => {
@@ -173,6 +198,7 @@ const GodownLr = () => {
   const clearAllFilters = () => {
     setSelectedConsignor(null);
     setSelectedConsignee(null);
+    setSelectedCompany(null);
     setSelectedName(null);
     setSelectedWorker(null);
     setSelectedStatus("All");
@@ -229,6 +255,13 @@ const GodownLr = () => {
         });
       }
 
+      // Filter by company
+      if (selectedCompany?.value) {
+        filtered = filtered.filter((receipt) => {
+          return receipt.companyId === selectedCompany.value;
+        });
+      }
+
       // Filter by status (client-side fallback if API doesn't support it)
       if (selectedStatus !== "All") {
         filtered = filtered.filter((receipt) => {
@@ -245,6 +278,7 @@ const GodownLr = () => {
     selectedWorker,
     selectedConsignor,
     selectedConsignee,
+    selectedCompany,
     selectedStatus,
   ]);
 
@@ -267,12 +301,12 @@ const GodownLr = () => {
         status === "Pending"
           ? "#f5a623"
           : status === "Completed"
-          ? "#28a745"
-          : status === "Cancelled"
-          ? "#dc3545"
-          : status === "Partially Correction"
-          ? "#007bff"
-          : "#6c757d",
+            ? "#28a745"
+            : status === "Cancelled"
+              ? "#dc3545"
+              : status === "Partially Correction"
+                ? "#007bff"
+                : "#6c757d",
       color: "white",
     };
   };
@@ -299,23 +333,23 @@ const GodownLr = () => {
           status === "All"
             ? "#6c757d"
             : status === "Pending"
-            ? "#f5a623"
-            : status === "Completed"
-            ? "#28a745"
-            : status === "Cancelled"
-            ? "#dc3545"
-            : "#007bff",
+              ? "#f5a623"
+              : status === "Completed"
+                ? "#28a745"
+                : status === "Cancelled"
+                  ? "#dc3545"
+                  : "#007bff",
         color: "white",
         borderColor:
           status === "All"
             ? "#6c757d"
             : status === "Pending"
-            ? "#f5a623"
-            : status === "Completed"
-            ? "#28a745"
-            : status === "Cancelled"
-            ? "#dc3545"
-            : "#007bff",
+              ? "#f5a623"
+              : status === "Completed"
+                ? "#28a745"
+                : status === "Cancelled"
+                  ? "#dc3545"
+                  : "#007bff",
       };
     }
 
@@ -326,12 +360,12 @@ const GodownLr = () => {
         status === "All"
           ? "#6c757d"
           : status === "Pending"
-          ? "#f5a623"
-          : status === "Completed"
-          ? "#28a745"
-          : status === "Cancelled"
-          ? "#dc3545"
-          : "#007bff",
+            ? "#f5a623"
+            : status === "Completed"
+              ? "#28a745"
+              : status === "Cancelled"
+                ? "#dc3545"
+                : "#007bff",
       ":hover": {
         backgroundColor: "#f8f9fa",
       },
@@ -375,7 +409,7 @@ const GodownLr = () => {
     { label: "Company Name", key: "companyName", sortable: true },
     { label: "Consignor Name", key: "consignorName", sortable: true },
     { label: "Consignee Name", key: "consigneeName", sortable: true },
-    { label: "Customer Name", key: "customerName", sortable: true },
+    { label: "Material Owner", key: "materialOwner", sortable: true },
     { label: "Vehicle Name", key: "vehicleName", sortable: true },
     { label: "Driver Name", key: "driverName", sortable: true },
     {
@@ -454,10 +488,10 @@ const GodownLr = () => {
     try {
       console.log(
         "Fetching Digital Signature for ID:",
-        selectedRow.digitalSignatureId
+        selectedRow.digitalSignatureId,
       );
       const response = await getDigitalSignatureApi(
-        selectedRow.digitalSignatureId
+        selectedRow.digitalSignatureId,
       );
 
       const base64Image = response?.signatureImage;
@@ -485,12 +519,12 @@ const GodownLr = () => {
     const totalBags =
       apiData.products?.reduce(
         (sum, product) => sum + (product.totalBags || 0),
-        0
+        0,
       ) || 0;
     const totalQuantityKg =
       apiData.products?.reduce(
         (sum, product) => sum + (product.quantityMT || 0),
-        0
+        0,
       ) || 0;
 
     return {
@@ -517,8 +551,8 @@ const GodownLr = () => {
       consigneeName: apiData.consigneeName,
       consigneeAddress: apiData.consigneeAddress,
 
-      customerName: apiData.customerName,
-      customerAddress: apiData.customerAddress,
+      materialOwner: apiData.materialOwner,
+      materialAddress: apiData.materialAddress,
 
       itemName:
         firstProduct.productName ||
@@ -556,6 +590,7 @@ const GodownLr = () => {
     return (
       selectedConsignor ||
       selectedConsignee ||
+      selectedCompany ||
       selectedName ||
       selectedWorker ||
       selectedStatus !== "All" ||
@@ -593,6 +628,17 @@ const GodownLr = () => {
               onChange={setSelectedConsignee}
               isClearable
               placeholder="Consignee..."
+              width="100px"
+            />
+          </div>
+
+          <div>
+            <SingleSelectDropdown
+              options={companyOptions}
+              value={selectedCompany}
+              onChange={setSelectedCompany}
+              isClearable
+              placeholder="Company..."
               width="100px"
             />
           </div>

@@ -54,6 +54,8 @@ export const getWarehouseProfileApi = async ({ queryKey }) => {
 
             productId: product.productId?._id,
             productName: product.productId?.name || 'Unknown',
+            bagSize: product.bagSize || 0,
+            totalBags: product.totalBags || 0,
             quantityMT: product.quantityMT,
 
         }))
@@ -231,8 +233,9 @@ export const getGodownTPApi = async ({ queryKey }) => {
             consigneeName: item.consigneeName,
             consigneeAddress: item.consigneeAddress,
 
-            customerName: item.customerName,
-            customerAddress: item.customerAddress,
+            materialOwner: item.materialOwnerId?.name || "Unknown",
+            materialAddress: item.materialOwnerId?.address || "Unknown",
+
             startLocation: item.startLocation,
             endLocation: item.endLocation,
 
@@ -458,6 +461,8 @@ export const getRailHeadApi = async ({ queryKey }) => {
             createdAt: formatDateToDDMMYYYY(item.createdAt) || "--",
             productId: item.productId || "",
             productName: item.productName || 'Unknown',
+            bagSize: item.bagSize || 0,
+            totalBags: item.totalBags || 0,
             quantityMT: item.quantityMT || 0,
 
         }))
@@ -470,4 +475,30 @@ export const getRailHeadApi = async ({ queryKey }) => {
         page: apiData.page || 1,
     }
 }
+
+
+// ------------------------------------------------------------------------------------------------------------- 
+
+// Material Owner Get Api
+
+export const getMartialOwnerDropDownApi = async ({ queryKey }) => {
+    const [_key, { search }] = queryKey;
+
+    const { data } = await api.get(
+        `${import.meta.env.VITE_API_URL}/api/material/owner/dropdown`,
+        {
+            params: { search },
+        }
+    );
+
+    return {
+        data: data.map((item) => ({
+            id: item._id,
+            name: item.name || "Unknown",
+        })),
+        total: data.total,
+        totalPages: data.totalPages,
+        page: data.page,
+    };
+};
 
