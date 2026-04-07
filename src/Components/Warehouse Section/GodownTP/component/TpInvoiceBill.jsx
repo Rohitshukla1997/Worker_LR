@@ -121,7 +121,7 @@ const TpInvoiceBill = ({ invoiceData }) => {
                 <h1>{companyName || "Transport Company"}</h1>
                 <p>{companyAddress || "N/A"}</p>
                 <p>
-                  <strong>Invoice No:</strong> {receiptNo || "N/A"}
+                  <strong>Date:</strong> {date || "N/A"}
                 </p>
               </div>
             </div>
@@ -139,10 +139,13 @@ const TpInvoiceBill = ({ invoiceData }) => {
             <p>
               <strong>Mobile:</strong> {companyMobileNumber || "N/A"}
             </p>
-            <p>
-              <strong>Date:</strong> {date || "N/A"}
-            </p>
           </div>
+        </div>
+
+        <div className="section two-column compact">
+          <h3 style={{ margin: "0 auto" }}>
+            <strong>Invoice No:</strong> {receiptNo || "N/A"}
+          </h3>
         </div>
 
         {/* Transport Details - Now includes driver name */}
