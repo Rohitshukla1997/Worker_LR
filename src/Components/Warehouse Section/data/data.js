@@ -363,23 +363,19 @@ export const getConsigneeApi = async ({ queryKey }) => {
     const response = await api.get(
         `${import.meta.env.VITE_API_URL}/api/consignee/get`,
         {
-            params: {
-                search: search || '',
-                page,
-                limit
-            },
+            search: search || '',
+            page: page,
+            limit: limit
         }
     );
 
-    // Check the actual response structure
     console.log("Consignee API Response:", response);
 
-    // Assuming response has data property with consignees array
-    const consignees = response.data?.consignees || response.consignees || response.data || [];
-    const totalCount = response.data?.count || response.count || consignees.length;
+    const consignees = response?.consignees || response?.data?.consignees || response?.data || [];
+    const totalCount = response?.count || response?.data?.count || consignees.length;
 
     return {
-        data: consignees.map((item) => ({
+        data: (consignees || []).map((item) => ({
             id: item._id || item.id,
             name: item.name || "Unknown",
             address: item.address || "Unknown",
@@ -394,26 +390,24 @@ export const getConsigneeApi = async ({ queryKey }) => {
 export const getConsignorApi = async ({ queryKey }) => {
     const [_key, { search, page, limit }] = queryKey;
 
+    // Don't wrap in { params: ... } because api.get already handles it
     const response = await api.get(
         `${import.meta.env.VITE_API_URL}/api/consignor/get`,
         {
-            params: {
-                search: search || '',
-                page,
-                limit
-            },
+            search: search || '',
+            page: page,
+            limit: limit
         }
     );
 
-    // Check the actual response structure
     console.log("Consignor API Response:", response);
 
     // Assuming response has data property with consignors array
-    const consignors = response.data?.consignors || response.consignors || response.data || [];
-    const totalCount = response.data?.count || response.count || consignors.length;
+    const consignors = response?.consignors || response?.data?.consignors || response?.data || [];
+    const totalCount = response?.count || response?.data?.count || consignors.length;
 
     return {
-        data: consignors.map((item) => ({
+        data: (consignors || []).map((item) => ({
             id: item._id || item.id,
             name: item.name || "Unknown",
             address: item.address || "Unknown",
