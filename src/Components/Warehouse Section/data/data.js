@@ -35,12 +35,12 @@ export const getWarehouseProfileApi = async ({ queryKey }) => {
     const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/warehouseproduct/get`,
         {
-            params: {
-                warehouseId: id,
-                search: search || '',
-                page,
-                limit,
-            },
+
+            warehouseId: id,
+            search: search || '',
+            page,
+            limit,
+
         }
     )
 
@@ -82,11 +82,11 @@ export const getWarehouseListApi = async ({ search, page, limit }) => {
     const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/warehouse/dropdown/list`,
         {
-            params: {
-                search: search || "",
-                page,
-                limit,
-            },
+
+            search: search || "",
+            page,
+            limit,
+
         }
     );
 
@@ -113,11 +113,11 @@ export const getProductListApi = async ({ queryKey }) => {
     const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/warehouse/product`,
         {
-            params: {
-                search: search || '',
-                page,
-                limit,
-            },
+
+            search: search || '',
+            page,
+            limit,
+
         }
     );
 
@@ -148,11 +148,11 @@ export const getInventoryProductListApi = async ({ queryKey }) => {
     const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/warehouseproduct/get`,
         {
-            params: {
-                search: search || "",
-                page,
-                limit,
-            },
+
+            search: search || "",
+            page,
+            limit,
+
         }
     );
 
@@ -185,7 +185,7 @@ export const getInventoryProductListApi = async ({ queryKey }) => {
 
 // get
 export const getGodownTPApi = async ({ queryKey }) => {
-    const [_key, { search, page, limit, consignorId, consigneeId }] = queryKey;
+    const [_key, { search, page, limit, consignorId, consigneeId, companyId }] = queryKey;
 
     const params = {
         search: search || "",
@@ -195,6 +195,7 @@ export const getGodownTPApi = async ({ queryKey }) => {
 
     if (consignorId) params.consignorId = consignorId;
     if (consigneeId) params.consigneeId = consigneeId;
+    if (companyId) params.companyId = companyId;
 
     // ✅ api.get already returns response.data
     const data = await api.get(
@@ -433,11 +434,11 @@ export const getRailHeadApi = async ({ queryKey }) => {
     const response = await api.get(
         `${import.meta.env.VITE_API_URL}/api/railhead/get`,
         {
-            params: {
-                search: search || '',
-                page,
-                limit,
-            },
+
+            search: search || '',
+            page,
+            limit,
+
         }
     )
 
@@ -481,7 +482,7 @@ export const getMartialOwnerDropDownApi = async ({ queryKey }) => {
     const { data } = await api.get(
         `${import.meta.env.VITE_API_URL}/api/material/owner/dropdown`,
         {
-            params: { search },
+            search: search || '',
         }
     );
 
