@@ -5,7 +5,7 @@ import {
   VehicleApi,
 } from "../../../TransportPass/data/data";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Select from "react-select";
+import Select, { components } from "react-select";
 import CreatableSelect from "react-select/creatable";
 import {
   FaWarehouse,
@@ -20,6 +20,7 @@ import {
   FaTrash,
   FaPlus,
   FaCheckCircle,
+  FaCheck,
 } from "react-icons/fa";
 import {
   getConsigneeApi,
@@ -129,6 +130,226 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
+// Skeleton Option Component for loading state
+const SkeletonOption = () => (
+  <div className="px-3 py-2">
+    <div className="placeholder-glow d-flex align-items-center">
+      <span
+        className="placeholder col-1 me-2"
+        style={{ height: "20px", borderRadius: "4px" }}
+      ></span>
+      <span
+        className="placeholder col-8"
+        style={{ height: "20px", borderRadius: "4px" }}
+      ></span>
+    </div>
+  </div>
+);
+
+// Scroll Loader Component with skeleton items
+const ScrollLoader = ({
+  count = 3,
+  currentCount,
+  totalCount,
+  direction = "down",
+}) => (
+  <div className="border-top pt-2">
+    {[...Array(count)].map((_, i) => (
+      <SkeletonOption key={i} />
+    ))}
+    <div className="text-center py-2 small text-muted">
+      <div
+        className="spinner-border spinner-border-sm me-2"
+        role="status"
+        style={{ width: "1rem", height: "1rem" }}
+      >
+        <span className="visually-hidden">Loading...</span>
+      </div>
+      Loading {direction === "up" ? "previous" : "more"} items... (
+      {currentCount} of {totalCount || "?"} loaded)
+    </div>
+  </div>
+);
+
+// Custom Loading Message Component for initial load
+const LoadingMessage = ({ children }) => (
+  <div className="d-flex align-items-center justify-content-center py-3">
+    <div
+      className="spinner-border spinner-border-sm text-primary me-2"
+      role="status"
+    >
+      <span className="visually-hidden">Loading...</span>
+    </div>
+    <span className="text-muted">{children}</span>
+  </div>
+);
+
+// Custom MenuList with bidirectional scroll pagination
+const CustomMenuList = ({
+  children,
+  isLoading,
+  hasMore,
+  hasPrevious,
+  onLoadPrevious,
+  onLoadMore,
+  selectProps,
+  ...props
+}) => {
+  const scrollRef = React.useRef(null);
+  const [isLoadingPrevious, setIsLoadingPrevious] = React.useState(false);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const previousScrollHeight = React.useRef(0);
+  const isLoadingRef = React.useRef(false);
+  const scrollTimeoutRef = React.useRef(null);
+
+  const handleScroll = (event) => {
+    const target = event.target;
+    const scrollTop = target.scrollTop;
+    const scrollHeight = target.scrollHeight;
+    const clientHeight = target.clientHeight;
+
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+
+    scrollTimeoutRef.current = setTimeout(() => {
+      const atBottom = scrollHeight - scrollTop <= clientHeight + 50;
+      const atTop = scrollTop <= 50;
+
+      if (
+        atBottom &&
+        !isLoadingRef.current &&
+        hasMore &&
+        onLoadMore &&
+        !isLoadingPrevious
+      ) {
+        isLoadingRef.current = true;
+        setIsLoadingMore(true);
+        onLoadMore();
+      }
+
+      if (
+        atTop &&
+        !isLoadingRef.current &&
+        hasPrevious &&
+        onLoadPrevious &&
+        scrollTop > 0 &&
+        !isLoadingMore
+      ) {
+        previousScrollHeight.current = scrollHeight;
+        isLoadingRef.current = true;
+        setIsLoadingPrevious(true);
+        onLoadPrevious();
+      }
+    }, 100);
+  };
+
+  React.useEffect(() => {
+    if (
+      !isLoading &&
+      !isLoadingMore &&
+      !isLoadingPrevious &&
+      isLoadingRef.current
+    ) {
+      isLoadingRef.current = false;
+    }
+  }, [isLoading, isLoadingMore, isLoadingPrevious]);
+
+  React.useEffect(() => {
+    if (
+      !isLoadingPrevious &&
+      previousScrollHeight.current > 0 &&
+      scrollRef.current
+    ) {
+      const newScrollHeight = scrollRef.current.scrollHeight;
+      const scrollDiff = newScrollHeight - previousScrollHeight.current;
+      if (scrollDiff > 0) {
+        scrollRef.current.scrollTop = scrollDiff;
+      }
+      previousScrollHeight.current = 0;
+      setTimeout(() => {
+        setIsLoadingPrevious(false);
+      }, 100);
+    }
+  }, [isLoadingPrevious]);
+
+  React.useEffect(() => {
+    if (!isLoading && isLoadingMore) {
+      setTimeout(() => {
+        setIsLoadingMore(false);
+      }, 100);
+    }
+  }, [isLoading, isLoadingMore]);
+
+  const selectedValue = selectProps.value?.value;
+  const hasSelectedItemNotInList =
+    selectedValue &&
+    !selectProps.options?.some(
+      (opt) =>
+        opt.value === selectedValue &&
+        opt.value !== "separator" &&
+        opt.value !== "header",
+    );
+  const currentCount =
+    selectProps.options?.filter(
+      (opt) => opt.value !== "separator" && opt.value !== "header",
+    ).length || 0;
+  const totalCount = selectProps.totalCount || 0;
+
+  React.useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (scrollElement) {
+      scrollElement.addEventListener("scroll", handleScroll);
+      return () => {
+        scrollElement.removeEventListener("scroll", handleScroll);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
+    }
+  }, [hasMore, hasPrevious]);
+
+  return (
+    <div ref={scrollRef} style={{ maxHeight: "300px", overflowY: "auto" }}>
+      {isLoadingPrevious && (
+        <ScrollLoader
+          count={2}
+          currentCount={currentCount}
+          totalCount={totalCount}
+          direction="up"
+        />
+      )}
+      {hasSelectedItemNotInList && (
+        <div className="px-3 py-2 small bg-light border-bottom">
+          <FaCheck className="me-1 text-success" size={10} />
+          <span className="text-muted">
+            Currently selected item shown in list
+          </span>
+        </div>
+      )}
+      {children}
+      {isLoadingMore && (
+        <ScrollLoader
+          count={3}
+          currentCount={currentCount}
+          totalCount={totalCount}
+          direction="down"
+        />
+      )}
+      {!isLoading &&
+        !hasMore &&
+        currentCount > 0 &&
+        !isLoadingPrevious &&
+        !isLoadingMore && (
+          <div className="text-center py-2 text-muted small border-top">
+            <FaCheck className="me-1 text-success" size={10} />
+            <span>All {currentCount} items loaded</span>
+          </div>
+        )}
+    </div>
+  );
+};
+
 const WarehouseForm = ({
   show,
   handleClose,
@@ -142,8 +363,6 @@ const WarehouseForm = ({
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [productDetails, setProductDetails] = useState({});
-  const [showConsignorModal, setShowConsignorModal] = useState(false);
-  const [showConsigneeModal, setShowConsigneeModal] = useState(false);
   const [calculationSource, setCalculationSource] = useState({});
 
   const [receivedByOptions] = useState([
@@ -174,8 +393,29 @@ const WarehouseForm = ({
   const [consignorPage, setConsignorPage] = useState(1);
   const [consigneePage, setConsigneePage] = useState(1);
   const [materialOwnerPage, setMaterialOwnerPage] = useState(1);
-  const itemsPerPage = 20;
 
+  const [hasMoreConsignor, setHasMoreConsignor] = useState(true);
+  const [hasMoreConsignee, setHasMoreConsignee] = useState(true);
+  const [hasMoreMaterialOwner, setHasMoreMaterialOwner] = useState(true);
+
+  const [hasPreviousConsignor, setHasPreviousConsignor] = useState(false);
+  const [hasPreviousConsignee, setHasPreviousConsignee] = useState(false);
+  const [hasPreviousMaterialOwner, setHasPreviousMaterialOwner] =
+    useState(false);
+
+  // State for cumulative data storage (for infinite scroll)
+  const [allConsignors, setAllConsignors] = useState([]);
+  const [allConsignees, setAllConsignees] = useState([]);
+  const [allMaterialOwners, setAllMaterialOwners] = useState([]);
+
+  // Track which pages have been loaded
+  const [loadedConsignorPages, setLoadedConsignorPages] = useState(new Set());
+  const [loadedConsigneePages, setLoadedConsigneePages] = useState(new Set());
+  const [loadedMaterialOwnerPages, setLoadedMaterialOwnerPages] = useState(
+    new Set(),
+  );
+
+  const itemsPerPage = 20;
   const queryClient = useQueryClient();
 
   // Calculate total quantity in MT across all products
@@ -225,46 +465,59 @@ const WarehouseForm = ({
     queryFn: getRailHeadApi,
   });
 
-  // Fetch Consignor data
+  // Fetch Consignor data with pagination
   const {
     data: consignorData = { data: [], total: 0 },
     isFetching: isFetchingConsignor,
+    isPreviousData: isPreviousConsignorData,
   } = useQuery({
     queryKey: [
       "Consignor",
       {
         search: debouncedConsignorSearch,
         page: consignorPage,
-        limit: 2000,
+        limit: itemsPerPage,
       },
     ],
     queryFn: getConsignorApi,
     keepPreviousData: true,
     staleTime: 1000 * 60 * 5,
+    onSuccess: (data) => {
+      const totalPages = Math.ceil((data?.total || 0) / itemsPerPage);
+      setHasMoreConsignor(consignorPage < totalPages);
+      setHasPreviousConsignor(consignorPage > 1);
+    },
   });
 
-  // Fetch Consignee data
+  // Fetch Consignee data with pagination
   const {
     data: consigneeData = { data: [], total: 0 },
     isFetching: isFetchingConsignee,
+    isPreviousData: isPreviousConsigneeData,
   } = useQuery({
     queryKey: [
       "Consignee",
       {
         search: debouncedConsigneeSearch,
         page: consigneePage,
-        limit: 2000,
+        limit: itemsPerPage,
       },
     ],
     queryFn: getConsigneeApi,
     keepPreviousData: true,
     staleTime: 1000 * 60 * 5,
+    onSuccess: (data) => {
+      const totalPages = Math.ceil((data?.total || 0) / itemsPerPage);
+      setHasMoreConsignee(consigneePage < totalPages);
+      setHasPreviousConsignee(consigneePage > 1);
+    },
   });
 
-  // Fetch Material Owner data
+  // Fetch Material Owner data with pagination
   const {
     data: materialOwnerData = { data: [], total: 0 },
     isFetching: isFetchingMaterialOwner,
+    isPreviousData: isPreviousMaterialOwnerData,
   } = useQuery({
     queryKey: [
       "MartialOwner",
@@ -277,6 +530,11 @@ const WarehouseForm = ({
     queryFn: getMartialOwnerDropDownApi,
     keepPreviousData: true,
     staleTime: 1000 * 60 * 5,
+    onSuccess: (data) => {
+      const totalPages = Math.ceil((data?.total || 0) / itemsPerPage);
+      setHasMoreMaterialOwner(materialOwnerPage < totalPages);
+      setHasPreviousMaterialOwner(materialOwnerPage > 1);
+    },
   });
 
   const warehouseList = warehouseResponse?.data || [];
@@ -284,6 +542,126 @@ const WarehouseForm = ({
   const consignorList = consignorData?.data || [];
   const consigneeList = consigneeData?.data || [];
   const materialOwnerList = materialOwnerData?.data || [];
+
+  // ACCUMULATION EFFECTS - Must come AFTER the queries
+  useEffect(() => {
+    if (consignorData?.data && consignorData.data.length > 0) {
+      const newItems = consignorData.data.filter(
+        (item) => !allConsignors.some((existing) => existing.id === item.id),
+      );
+
+      if (newItems.length > 0) {
+        if (consignorPage === 1) {
+          setAllConsignors(consignorData.data);
+        } else if (
+          consignorPage < Math.min(...Array.from(loadedConsignorPages))
+        ) {
+          setAllConsignors((prev) => [...newItems, ...prev]);
+        } else {
+          setAllConsignors((prev) => [...prev, ...newItems]);
+        }
+      }
+
+      setLoadedConsignorPages((prev) => new Set([...prev, consignorPage]));
+    }
+  }, [consignorData?.data, consignorPage]);
+
+  useEffect(() => {
+    if (consigneeData?.data && consigneeData.data.length > 0) {
+      const newItems = consigneeData.data.filter(
+        (item) => !allConsignees.some((existing) => existing.id === item.id),
+      );
+
+      if (newItems.length > 0) {
+        if (consigneePage === 1) {
+          setAllConsignees(consigneeData.data);
+        } else if (
+          consigneePage < Math.min(...Array.from(loadedConsigneePages))
+        ) {
+          setAllConsignees((prev) => [...newItems, ...prev]);
+        } else {
+          setAllConsignees((prev) => [...prev, ...newItems]);
+        }
+      }
+
+      setLoadedConsigneePages((prev) => new Set([...prev, consigneePage]));
+    }
+  }, [consigneeData?.data, consigneePage]);
+
+  useEffect(() => {
+    if (materialOwnerData?.data && materialOwnerData.data.length > 0) {
+      const newItems = materialOwnerData.data.filter(
+        (item) =>
+          !allMaterialOwners.some((existing) => existing.id === item.id),
+      );
+
+      if (newItems.length > 0) {
+        if (materialOwnerPage === 1) {
+          setAllMaterialOwners(materialOwnerData.data);
+        } else if (
+          materialOwnerPage < Math.min(...Array.from(loadedMaterialOwnerPages))
+        ) {
+          setAllMaterialOwners((prev) => [...newItems, ...prev]);
+        } else {
+          setAllMaterialOwners((prev) => [...prev, ...newItems]);
+        }
+      }
+
+      setLoadedMaterialOwnerPages(
+        (prev) => new Set([...prev, materialOwnerPage]),
+      );
+    }
+  }, [materialOwnerData?.data, materialOwnerPage]);
+
+  // Load more handlers (scroll down)
+  const loadMoreConsignors = useCallback(() => {
+    if (!isFetchingConsignor && hasMoreConsignor && !isPreviousConsignorData) {
+      setConsignorPage((prev) => prev + 1);
+    }
+  }, [isFetchingConsignor, hasMoreConsignor, isPreviousConsignorData]);
+
+  const loadMoreConsignees = useCallback(() => {
+    if (!isFetchingConsignee && hasMoreConsignee && !isPreviousConsigneeData) {
+      setConsigneePage((prev) => prev + 1);
+    }
+  }, [isFetchingConsignee, hasMoreConsignee, isPreviousConsigneeData]);
+
+  const loadMoreMaterialOwners = useCallback(() => {
+    if (
+      !isFetchingMaterialOwner &&
+      hasMoreMaterialOwner &&
+      !isPreviousMaterialOwnerData
+    ) {
+      setMaterialOwnerPage((prev) => prev + 1);
+    }
+  }, [
+    isFetchingMaterialOwner,
+    hasMoreMaterialOwner,
+    isPreviousMaterialOwnerData,
+  ]);
+
+  // Load previous handlers (scroll up)
+  const loadPreviousConsignors = useCallback(() => {
+    if (!isFetchingConsignor && consignorPage > 1 && !isPreviousConsignorData) {
+      setConsignorPage((prev) => prev - 1);
+    }
+  }, [isFetchingConsignor, consignorPage, isPreviousConsignorData]);
+
+  const loadPreviousConsignees = useCallback(() => {
+    if (!isFetchingConsignee && consigneePage > 1 && !isPreviousConsigneeData) {
+      setConsigneePage((prev) => prev - 1);
+    }
+  }, [isFetchingConsignee, consigneePage, isPreviousConsigneeData]);
+
+  const loadPreviousMaterialOwners = useCallback(() => {
+    if (
+      !isFetchingMaterialOwner &&
+      materialOwnerPage > 1 &&
+      !isPreviousMaterialOwnerData
+    ) {
+      setMaterialOwnerPage((prev) => prev - 1);
+    }
+  }, [isFetchingMaterialOwner, materialOwnerPage, isPreviousMaterialOwnerData]);
 
   const handleNumberInputScroll = (e) => {
     e.preventDefault();
@@ -418,46 +796,33 @@ const WarehouseForm = ({
   const handleConsignorInputChange = useCallback((value) => {
     setConsignorSearchInput(value);
     setConsignorPage(1);
+    setHasMoreConsignor(true);
+    setHasPreviousConsignor(false);
+    setAllConsignors([]);
+    setLoadedConsignorPages(new Set());
   }, []);
 
   const handleConsigneeInputChange = useCallback((value) => {
     setConsigneeSearchInput(value);
     setConsigneePage(1);
+    setHasMoreConsignee(true);
+    setHasPreviousConsignee(false);
+    setAllConsignees([]);
+    setLoadedConsigneePages(new Set());
   }, []);
 
   const handleMaterialOwnerInputChange = useCallback((value) => {
     setMaterialOwnerSearchInput(value);
     setMaterialOwnerPage(1);
+    setHasMoreMaterialOwner(true);
+    setHasPreviousMaterialOwner(false);
+    setAllMaterialOwners([]);
+    setLoadedMaterialOwnerPages(new Set());
   }, []);
-
-  const handleConsignorMenuScrollToBottom = useCallback(() => {
-    const totalPages = Math.ceil(consignorData.total / itemsPerPage);
-    if (consignorPage < totalPages) {
-      setConsignorPage((prev) => prev + 1);
-    }
-  }, [consignorData.total, consignorPage]);
-
-  const handleConsigneeMenuScrollToBottom = useCallback(() => {
-    const totalPages = Math.ceil(consigneeData.total / itemsPerPage);
-    if (consigneePage < totalPages) {
-      setConsigneePage((prev) => prev + 1);
-    }
-  }, [consigneeData.total, consigneePage]);
-
-  const handleMaterialOwnerMenuScrollToBottom = useCallback(() => {
-    const totalPages = Math.ceil(
-      (materialOwnerData?.total || 0) / itemsPerPage,
-    );
-    if (materialOwnerPage < totalPages) {
-      setMaterialOwnerPage((prev) => prev + 1);
-    }
-  }, [materialOwnerData?.total, materialOwnerPage]);
 
   // Extract product details
   useEffect(() => {
     if (inventoryList.length > 0) {
-      console.log("=== RAIL HEAD DATA ===", inventoryList);
-
       const details = {};
       inventoryList.forEach((item) => {
         const productId = item._id || item.id || item.productId;
@@ -507,8 +872,6 @@ const WarehouseForm = ({
   // Load initial data for edit mode
   useEffect(() => {
     if (mode === "edit" && initialData) {
-      console.log("WarehouseForm initialData:", initialData);
-
       const parseDate = (dateString) => {
         if (!dateString) return getTodayDate();
 
@@ -584,8 +947,6 @@ const WarehouseForm = ({
         })) || [{ ...defaultProduct }],
       };
 
-      console.log("WarehouseForm editedFormData - Date:", editedFormData.date);
-      console.log("WarehouseForm editedFormData:", editedFormData);
       setFormData(editedFormData);
     } else {
       setFormData(defaultFormData);
@@ -764,7 +1125,6 @@ const WarehouseForm = ({
     const totalBags = parseInt(currentProduct.totalBags);
     const quantityMT = parseFloat(currentProduct.quantityMT);
 
-    // Track which field triggered the calculation
     if (
       field === "bagSize" ||
       field === "totalBags" ||
@@ -773,7 +1133,6 @@ const WarehouseForm = ({
       setCalculationSource((prev) => ({ ...prev, [index]: field }));
     }
 
-    // Perform calculations based on which field was changed
     if (field === "bagSize" && value && !isNaN(bagSize) && bagSize > 0) {
       if (totalBags && !isNaN(totalBags) && totalBags > 0) {
         const calculatedQuantity = calculateQuantityFromBags(
@@ -881,17 +1240,6 @@ const WarehouseForm = ({
   const onSubmit = (e) => {
     e.preventDefault();
 
-    console.log("=== PRODUCTS BEFORE VALIDATION ===");
-    formData.products.forEach((product, index) => {
-      console.log(`Product ${index + 1}:`, {
-        productId: product.productId,
-        productName: product.productName,
-        quantityMT: product.quantityMT,
-        bagSize: product.bagSize,
-        totalBags: product.totalBags,
-      });
-    });
-
     if (!formData.companyId) {
       toast.error("Please select a company");
       return;
@@ -923,7 +1271,6 @@ const WarehouseForm = ({
       }
 
       if (!isValid) {
-        console.log(`Product ${index + 1} validation failed:`, errorMessages);
         acc.push({ index, errors: errorMessages });
       }
 
@@ -1015,13 +1362,11 @@ const WarehouseForm = ({
     };
 
     if (!vehicleExistsInDb && payload.vehicleId) {
-      console.log("Vehicle not found in DB, removing vehicleId from payload");
       payload.vehicleName = payload.vehicleId;
       delete payload.vehicleId;
     }
 
     if (!driverExistsInDb && payload.driverId) {
-      console.log("Driver not found in DB, removing driverId from payload");
       payload.driverName = payload.driverId;
       delete payload.driverId;
     }
@@ -1046,20 +1391,7 @@ const WarehouseForm = ({
       }));
     }
 
-    console.log("=== FINAL PAYLOAD ===", payload);
-    console.log("=== VEHICLE EXISTS IN DB? ===", vehicleExistsInDb);
-    console.log("=== DRIVER EXISTS IN DB? ===", driverExistsInDb);
-    console.log("=== TOTAL QUANTITY MT ===", totalQuantity);
-    console.log("=== PRODUCTS DETAIL ===", payload.products);
-
     handleSubmit(payload);
-  };
-
-  const formatNumberValue = (value) => {
-    if (value === "" || value === null || value === undefined) {
-      return "";
-    }
-    return value.toString();
   };
 
   const receivedByWarehouseOptions = warehouseList.map((w) => ({
@@ -1106,26 +1438,207 @@ const WarehouseForm = ({
       }))
     : [];
 
-  const consignorOptions = consignorList.map((consignor) => ({
-    value: consignor.id,
-    label: consignor.name,
-    name: consignor.name,
-    address: consignor.address,
-  }));
+  // Options with selected item persistence for Consignor (using accumulated data)
+  const consignorOptions = useMemo(() => {
+    const options = [];
 
-  const consigneeOptions = consigneeList.map((consignee) => ({
-    value: consignee.id,
-    label: consignee.name,
-    name: consignee.name,
-    address: consignee.address,
-  }));
+    if (allConsignors.length > 0) {
+      options.push({
+        value: "header",
+        label: (
+          <div className="text-muted small fw-semibold py-1 px-2 bg-light">
+            Existing Consignors
+          </div>
+        ),
+        isDisabled: true,
+        name: "",
+        address: "",
+      });
+    }
 
-  const materialOwnerOptions = materialOwnerList.map((owner) => ({
-    value: owner.id,
-    label: owner.name,
-    name: owner.name,
-    address: owner.address || "",
-  }));
+    if (formData.consignorId && formData.consignorName) {
+      const isSelectedInList = allConsignors.some(
+        (c) => c.id === formData.consignorId,
+      );
+      if (!isSelectedInList) {
+        options.push({
+          value: formData.consignorId,
+          label: (
+            <div className="d-flex align-items-center">
+              <FaCheck className="text-success me-2" size={12} />
+              <span>{formData.consignorName}</span>
+              <span
+                className="badge bg-success ms-2"
+                style={{ fontSize: "10px" }}
+              >
+                Selected
+              </span>
+            </div>
+          ),
+          name: formData.consignorName,
+          address: formData.consignorAddress || "",
+        });
+      }
+    }
+
+    allConsignors.forEach((consignor) => {
+      if (consignor.id === formData.consignorId) {
+        options.push({
+          value: consignor.id,
+          label: (
+            <div className="d-flex align-items-center">
+              <FaCheck className="text-success me-2" size={12} />
+              <span>{consignor.name}</span>
+              <span
+                className="badge bg-success ms-2"
+                style={{ fontSize: "10px" }}
+              >
+                Selected
+              </span>
+            </div>
+          ),
+          name: consignor.name,
+          address: consignor.address,
+        });
+      } else {
+        options.push({
+          value: consignor.id,
+          label: consignor.name,
+          name: consignor.name,
+          address: consignor.address,
+        });
+      }
+    });
+
+    return options;
+  }, [
+    allConsignors,
+    formData.consignorId,
+    formData.consignorName,
+    formData.consignorAddress,
+  ]);
+
+  // Options with selected item persistence for Consignee (using accumulated data)
+  const consigneeOptions = useMemo(() => {
+    const options = [];
+
+    if (allConsignees.length > 0) {
+      options.push({
+        value: "header",
+        label: (
+          <div className="text-muted small fw-semibold py-1 px-2 bg-light">
+            Existing Consignees
+          </div>
+        ),
+        isDisabled: true,
+        name: "",
+        address: "",
+      });
+    }
+
+    if (formData.consigneeId && formData.consigneeName) {
+      const isSelectedInList = allConsignees.some(
+        (c) => c.id === formData.consigneeId,
+      );
+      if (!isSelectedInList) {
+        options.push({
+          value: formData.consigneeId,
+          label: (
+            <div className="d-flex align-items-center">
+              <FaCheck className="text-success me-2" size={12} />
+              <span>{formData.consigneeName}</span>
+              <span
+                className="badge bg-success ms-2"
+                style={{ fontSize: "10px" }}
+              >
+                Selected
+              </span>
+            </div>
+          ),
+          name: formData.consigneeName,
+          address: formData.consigneeAddress || "",
+        });
+      }
+    }
+
+    allConsignees.forEach((consignee) => {
+      if (consignee.id === formData.consigneeId) {
+        options.push({
+          value: consignee.id,
+          label: (
+            <div className="d-flex align-items-center">
+              <FaCheck className="text-success me-2" size={12} />
+              <span>{consignee.name}</span>
+              <span
+                className="badge bg-success ms-2"
+                style={{ fontSize: "10px" }}
+              >
+                Selected
+              </span>
+            </div>
+          ),
+          name: consignee.name,
+          address: consignee.address,
+        });
+      } else {
+        options.push({
+          value: consignee.id,
+          label: consignee.name,
+          name: consignee.name,
+          address: consignee.address,
+        });
+      }
+    });
+
+    return options;
+  }, [
+    allConsignees,
+    formData.consigneeId,
+    formData.consigneeName,
+    formData.consigneeAddress,
+  ]);
+
+  // Options for Material Owner (using accumulated data)
+  const materialOwnerOptions = useMemo(() => {
+    const options = allMaterialOwners.map((owner) => ({
+      value: owner.id,
+      label: owner.name,
+      name: owner.name,
+      address: owner.address || "",
+    }));
+
+    if (formData.materialOwnerId && formData.materialOwnerName) {
+      const isSelectedInList = options.some(
+        (opt) => opt.value === formData.materialOwnerId,
+      );
+      if (!isSelectedInList) {
+        options.unshift({
+          value: formData.materialOwnerId,
+          label: (
+            <div className="d-flex align-items-center">
+              <FaCheck className="text-success me-2" size={12} />
+              <span>{formData.materialOwnerName}</span>
+              <span
+                className="badge bg-success ms-2"
+                style={{ fontSize: "10px" }}
+              >
+                Selected
+              </span>
+            </div>
+          ),
+          name: formData.materialOwnerName,
+          address: formData.materialOwnerAddress || "",
+        });
+      }
+    }
+
+    return options;
+  }, [
+    allMaterialOwners,
+    formData.materialOwnerId,
+    formData.materialOwnerName,
+    formData.materialOwnerAddress,
+  ]);
 
   const getWarehouseValue = (product) => {
     if (!product.warehouseId) return null;
@@ -1217,16 +1730,24 @@ const WarehouseForm = ({
   };
 
   const getConsignorValue = () => {
-    if (!formData.consignorId) return null;
+    if (!formData.consignorId && !formData.consignorName) return null;
     return (
-      consignorOptions.find((opt) => opt.value === formData.consignorId) || null
+      consignorOptions.find(
+        (opt) =>
+          opt.value === formData.consignorId ||
+          opt.name === formData.consignorName,
+      ) || null
     );
   };
 
   const getConsigneeValue = () => {
-    if (!formData.consigneeId) return null;
+    if (!formData.consigneeId && !formData.consigneeName) return null;
     return (
-      consigneeOptions.find((opt) => opt.value === formData.consigneeId) || null
+      consigneeOptions.find(
+        (opt) =>
+          opt.value === formData.consigneeId ||
+          opt.name === formData.consigneeName,
+      ) || null
     );
   };
 
@@ -1310,24 +1831,17 @@ const WarehouseForm = ({
     };
   };
 
-  // Debug log to check if show prop is working
-  console.log("WarehouseForm - show prop:", show);
-
-  // Don't return null early - render the modal conditionally
   return (
     <>
       {show && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-            {/* Backdrop with reduced opacity */}
             <div
               className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-30"
               onClick={handleClose}
             ></div>
 
-            {/* Modal Container */}
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-7xl sm:w-full relative z-10">
-              {/* Modal Header */}
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start w-full">
                   <div className="w-full">
@@ -1358,7 +1872,6 @@ const WarehouseForm = ({
                       </div>
                     </div>
 
-                    {/* Info Alert */}
                     <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
                       <div className="flex items-center">
                         <FaWarehouse className="mr-2 text-blue-500" />
@@ -1394,7 +1907,6 @@ const WarehouseForm = ({
                       </div>
                     </div>
 
-                    {/* Form */}
                     <form onSubmit={onSubmit} className="space-y-6">
                       {/* Issued/Received Section */}
                       <div>
@@ -1604,7 +2116,7 @@ const WarehouseForm = ({
                         </div>
                       </div>
 
-                      {/* Consignor Details */}
+                      {/* Consignor Details with Bidirectional Infinite Scroll */}
                       <div>
                         <h5 className="font-semibold border-b pb-2 mb-3 text-gray-700">
                           Consignor Details
@@ -1621,23 +2133,36 @@ const WarehouseForm = ({
                               options={consignorOptions}
                               placeholder="Select Consignor"
                               isClearable
-                              isLoading={isLoading || isFetchingConsignor}
-                              onInputChange={handleConsignorInputChange}
-                              onMenuScrollToBottom={
-                                handleConsignorMenuScrollToBottom
+                              isLoading={
+                                isFetchingConsignor && consignorPage === 1
                               }
+                              onInputChange={handleConsignorInputChange}
                               filterOption={null}
                               noOptionsMessage={({ inputValue }) =>
                                 inputValue
                                   ? `No consignor found for "${inputValue}"`
                                   : "Type to search consignor"
                               }
+                              loadingMessage={() => (
+                                <LoadingMessage>
+                                  Loading consignors...
+                                </LoadingMessage>
+                              )}
+                              components={{
+                                MenuList: (props) => (
+                                  <CustomMenuList
+                                    {...props}
+                                    isLoading={isFetchingConsignor}
+                                    hasMore={hasMoreConsignor}
+                                    hasPrevious={hasPreviousConsignor}
+                                    onLoadPrevious={loadPreviousConsignors}
+                                    onLoadMore={loadMoreConsignors}
+                                    totalCount={consignorData?.total || 0}
+                                  />
+                                ),
+                              }}
+                              required
                             />
-                            {isFetchingConsignor && (
-                              <p className="text-blue-600 text-sm mt-1">
-                                Searching...
-                              </p>
-                            )}
                           </div>
                           {formData.consignorAddress && (
                             <div>
@@ -1654,7 +2179,7 @@ const WarehouseForm = ({
                         </div>
                       </div>
 
-                      {/* Consignee Details */}
+                      {/* Consignee Details with Bidirectional Infinite Scroll */}
                       <div>
                         <h5 className="font-semibold border-b pb-2 mb-3 text-gray-700">
                           Consignee Details
@@ -1671,23 +2196,36 @@ const WarehouseForm = ({
                               options={consigneeOptions}
                               placeholder="Select Consignee"
                               isClearable
-                              isLoading={isLoading || isFetchingConsignee}
-                              onInputChange={handleConsigneeInputChange}
-                              onMenuScrollToBottom={
-                                handleConsigneeMenuScrollToBottom
+                              isLoading={
+                                isFetchingConsignee && consigneePage === 1
                               }
+                              onInputChange={handleConsigneeInputChange}
                               filterOption={null}
                               noOptionsMessage={({ inputValue }) =>
                                 inputValue
                                   ? `No consignee found for "${inputValue}"`
                                   : "Type to search consignee"
                               }
+                              loadingMessage={() => (
+                                <LoadingMessage>
+                                  Loading consignees...
+                                </LoadingMessage>
+                              )}
+                              components={{
+                                MenuList: (props) => (
+                                  <CustomMenuList
+                                    {...props}
+                                    isLoading={isFetchingConsignee}
+                                    hasMore={hasMoreConsignee}
+                                    hasPrevious={hasPreviousConsignee}
+                                    onLoadPrevious={loadPreviousConsignees}
+                                    onLoadMore={loadMoreConsignees}
+                                    totalCount={consigneeData?.total || 0}
+                                  />
+                                ),
+                              }}
+                              required
                             />
-                            {isFetchingConsignee && (
-                              <p className="text-blue-600 text-sm mt-1">
-                                Searching...
-                              </p>
-                            )}
                           </div>
                           {formData.consigneeAddress && (
                             <div>
@@ -1704,7 +2242,7 @@ const WarehouseForm = ({
                         </div>
                       </div>
 
-                      {/* Material Owner Details */}
+                      {/* Material Owner Details with Bidirectional Infinite Scroll */}
                       <div>
                         <h5 className="font-semibold border-b pb-2 mb-3 text-gray-700">
                           Material Owner Details
@@ -1720,23 +2258,36 @@ const WarehouseForm = ({
                               options={materialOwnerOptions}
                               placeholder="Select Material Owner"
                               isClearable
-                              isLoading={isLoading || isFetchingMaterialOwner}
-                              onInputChange={handleMaterialOwnerInputChange}
-                              onMenuScrollToBottom={
-                                handleMaterialOwnerMenuScrollToBottom
+                              isLoading={
+                                isFetchingMaterialOwner &&
+                                materialOwnerPage === 1
                               }
+                              onInputChange={handleMaterialOwnerInputChange}
                               filterOption={null}
                               noOptionsMessage={({ inputValue }) =>
                                 inputValue
                                   ? `No material owner found for "${inputValue}"`
                                   : "Type to search material owner"
                               }
+                              loadingMessage={() => (
+                                <LoadingMessage>
+                                  Loading material owners...
+                                </LoadingMessage>
+                              )}
+                              components={{
+                                MenuList: (props) => (
+                                  <CustomMenuList
+                                    {...props}
+                                    isLoading={isFetchingMaterialOwner}
+                                    hasMore={hasMoreMaterialOwner}
+                                    hasPrevious={hasPreviousMaterialOwner}
+                                    onLoadPrevious={loadPreviousMaterialOwners}
+                                    onLoadMore={loadMoreMaterialOwners}
+                                    totalCount={materialOwnerData?.total || 0}
+                                  />
+                                ),
+                              }}
                             />
-                            {isFetchingMaterialOwner && (
-                              <p className="text-blue-600 text-sm mt-1">
-                                Searching...
-                              </p>
-                            )}
                           </div>
                           {formData.materialOwnerAddress && (
                             <div>
@@ -1988,15 +2539,6 @@ const WarehouseForm = ({
                                       }
                                       required
                                     />
-                                    {/* {productDetail && (
-                                      <p className="text-blue-600 text-xs mt-1">
-                                        <FaBox className="inline mr-1" />
-                                        {productDetail.productName} • Available:{" "}
-                                        {productDetail.quantityMT} MT • Bag
-                                        Size: {productDetail.bagSize} kg • Total
-                                        Bags: {productDetail.totalBags}
-                                      </p>
-                                    )} */}
                                   </div>
 
                                   {/* Total Bags */}
@@ -2019,15 +2561,6 @@ const WarehouseForm = ({
                                       placeholder="Enter total bags"
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                     />
-                                    {/* {totalBagsHint && (
-                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
-                                        <FaInfoCircle
-                                          className="mr-1"
-                                          size={10}
-                                        />
-                                        {totalBagsHint}
-                                      </p>
-                                    )} */}
                                   </div>
 
                                   {/* Bag Size */}
@@ -2051,15 +2584,6 @@ const WarehouseForm = ({
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                       readOnly
                                     />
-                                    {/* {bagSizeHint && (
-                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
-                                        <FaInfoCircle
-                                          className="mr-1"
-                                          size={10}
-                                        />
-                                        {bagSizeHint}
-                                      </p>
-                                    )} */}
                                     <p className="text-gray-500 text-xs mt-1">
                                       Weight per bag in kilograms
                                     </p>
@@ -2089,15 +2613,6 @@ const WarehouseForm = ({
                                       step="0.01"
                                       className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-sm"
                                     />
-                                    {/* {quantityHint && (
-                                      <p className="text-blue-600 text-xs mt-1 flex items-center">
-                                        <FaInfoCircle
-                                          className="mr-1"
-                                          size={10}
-                                        />
-                                        {quantityHint}
-                                      </p>
-                                    )} */}
                                     <p className="text-gray-500 text-xs mt-1">
                                       Enter quantity in Metric Ton (1 MT = 1000
                                       kg)
@@ -2219,12 +2734,6 @@ const WarehouseForm = ({
                               readOnly
                               className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm"
                             />
-                            {/* <p className="text-blue-600 text-xs mt-1">
-                              <FaInfoCircle className="inline mr-1" size={10} />
-                              Auto: {totalQuantity.toFixed(3)} MT ×{" "}
-                              {formData.customerRate || 0} ={" "}
-                              {formData.totalAmount || 0}
-                            </p> */}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -2255,12 +2764,6 @@ const WarehouseForm = ({
                               readOnly
                               className="w-full px-3 py-2 border border-gray-300 rounded bg-gray-100 text-gray-600 text-sm"
                             />
-                            {/* <p className="text-blue-600 text-xs mt-1">
-                              <FaInfoCircle className="inline mr-1" size={10} />
-                              Auto: {totalQuantity.toFixed(3)} MT ×{" "}
-                              {formData.transporterRate || 0} ={" "}
-                              {formData.totalTransporterAmount || 0}
-                            </p> */}
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">
