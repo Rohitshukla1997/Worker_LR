@@ -1340,11 +1340,30 @@ const WarehouseForm = ({
     const totalTransporterAmount =
       parseFloat(formData.totalTransporterAmount) || 0;
 
+    // FIX: Convert empty strings to null/undefined for ObjectId fields
+    const getObjectIdValue = (value) => {
+      if (!value || value === "" || typeof value !== "string") {
+        return null; // or undefined - both work better than empty string
+      }
+      // Optional: Validate if it looks like a MongoDB ObjectId (24 hex chars)
+      // if (/^[0-9a-fA-F]{24}$/.test(value)) {
+      //   return value;
+      // }
+      return value;
+    };
+
     const payload = {
       ...formData,
       tpPassType: "warehouse",
-      companyId: formData.companyId || "",
-      materialOwnerId: formData.materialOwnerId || "",
+      // Fix ObjectId fields
+      companyId: getObjectIdValue(formData.companyId),
+      materialOwnerId: getObjectIdValue(formData.materialOwnerId), // This is the critical fix
+      consignorId: getObjectIdValue(formData.consignorId),
+      consigneeId: getObjectIdValue(formData.consigneeId),
+      driverId: getObjectIdValue(formData.driverId),
+      vehicleId: getObjectIdValue(formData.vehicleId),
+      receivedByWarehouseId: getObjectIdValue(formData.receivedByWarehouseId),
+      // Keep other fields as is
       materialOwnerName: formData.materialOwnerName || "",
       materialOwnerAddress: formData.materialOwnerAddress || "",
       date: formData.date
@@ -1370,6 +1389,13 @@ const WarehouseForm = ({
       payload.driverName = payload.driverId;
       delete payload.driverId;
     }
+
+    // Remove any null/undefined values from payload (optional but cleaner)
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === null || payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
 
     if (
       formData.issuedBy === "Railhead" &&

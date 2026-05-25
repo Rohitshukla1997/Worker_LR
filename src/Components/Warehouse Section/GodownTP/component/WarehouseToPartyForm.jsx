@@ -1265,27 +1265,46 @@ const WarehouseToPartyForm = ({
     const totalTransporterAmount =
       parseFloat(formData.totalTransporterAmount) || 0;
 
+    // Helper function to convert empty strings to null for ObjectId fields
+    const getObjectIdValue = (value) => {
+      if (!value || value === "" || typeof value !== "string") {
+        return null;
+      }
+      return value;
+    };
+
+    // Helper function to process number fields
+    const processNumberField = (value) => {
+      if (value === "" || value === null || value === undefined) {
+        return 0;
+      }
+      const num = parseFloat(value);
+      return isNaN(num) ? 0 : num;
+    };
+
     const payload = {
       ...formData,
       tpPassType: "warehouseToParty",
-      companyId: formData.companyId || "",
-      warehouseId: formData.issuedByWarehouseId || "",
-      consignorId: formData.consignorId || "",
-      consigneeId: formData.consigneeId || "",
-      materialOwnerId: formData.materialOwnerId || "",
+      // Fix ObjectId fields - convert empty strings to null
+      companyId: getObjectIdValue(formData.companyId),
+      warehouseId: getObjectIdValue(formData.issuedByWarehouseId),
+      consignorId: getObjectIdValue(formData.consignorId),
+      consigneeId: getObjectIdValue(formData.consigneeId),
+      materialOwnerId: getObjectIdValue(formData.materialOwnerId), // This is the critical fix
+      // Keep other fields as is
       materialOwnerName: formData.materialOwnerName || "",
       materialOwnerAddress: formData.materialOwnerAddress || "",
       date: formData.date
         ? new Date(formData.date).toISOString()
         : new Date().toISOString(),
-      customerRate: parseFloat(formData.customerRate) || 0,
+      customerRate: processNumberField(formData.customerRate),
       totalAmount: totalAmount,
-      transporterRate: parseFloat(formData.transporterRate) || 0,
+      transporterRate: processNumberField(formData.transporterRate),
       totalTransporterAmount: totalTransporterAmount,
-      transporterRateOn: parseFloat(formData.transporterRateOn) || 0,
-      customerRateOn: parseFloat(formData.customerRateOn) || 0,
-      customerFreight: parseFloat(formData.customerFreight) || 0,
-      transporterFreight: parseFloat(formData.transporterFreight) || 0,
+      transporterRateOn: processNumberField(formData.transporterRateOn),
+      customerRateOn: processNumberField(formData.customerRateOn),
+      customerFreight: processNumberField(formData.customerFreight),
+      transporterFreight: processNumberField(formData.transporterFreight),
       products: formData.products.map((product) => {
         const transformedProduct = {
           productId: product.productId,
@@ -1293,36 +1312,46 @@ const WarehouseToPartyForm = ({
           warehouseId: product.warehouseId || formData.issuedByWarehouseId,
           warehouseName:
             product.warehouseName || formData.issuedByWarehouseName,
-          quantityMT: parseFloat(product.quantityMT) || 0,
-          bagSize: parseFloat(product.bagSize) || 0,
-          totalBags: parseFloat(product.totalBags) || 0,
+          quantityMT: processNumberField(product.quantityMT),
+          bagSize: processNumberField(product.bagSize),
+          totalBags: processNumberField(product.totalBags),
         };
         return transformedProduct;
       }),
     };
 
+    // Remove any null/undefined values from payload (optional but cleaner)
+    Object.keys(payload).forEach((key) => {
+      if (payload[key] === null || payload[key] === undefined) {
+        delete payload[key];
+      }
+    });
+
+    // Clean up unwanted fields
     delete payload.bagSize;
     delete payload.workerId;
     delete payload.workerName;
     delete payload.costPerBag;
     delete payload.itemCost;
 
+    // Handle custom vehicle
     if (isCustomVehicle) {
       delete payload.vehicleId;
       payload.vehicleName = formData.vehicleName;
     } else if (formData.vehicleId) {
-      payload.vehicleId = formData.vehicleId;
+      payload.vehicleId = getObjectIdValue(formData.vehicleId);
       payload.vehicleName = formData.vehicleName;
     } else {
       delete payload.vehicleId;
       delete payload.vehicleName;
     }
 
+    // Handle custom driver
     if (isCustomDriver) {
       delete payload.driverId;
       payload.driverName = formData.driverName;
     } else if (formData.driverId) {
-      payload.driverId = formData.driverId;
+      payload.driverId = getObjectIdValue(formData.driverId);
       payload.driverName = formData.driverName;
     } else {
       delete payload.driverId;
