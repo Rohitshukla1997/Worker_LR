@@ -184,141 +184,115 @@ const LoadingMessage = ({ children }) => (
   </div>
 );
 
-// Custom MenuList with bidirectional scroll pagination
-const CustomMenuList = ({
-  children,
-  isLoading,
-  hasMore,
-  hasPrevious,
-  onLoadPrevious,
-  onLoadMore,
-  selectProps,
-  ...props
-}) => {
-  const scrollRef = React.useRef(null);
-  const [isLoadingPrevious, setIsLoadingPrevious] = React.useState(false);
-  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
-  const previousScrollHeight = React.useRef(0);
-  const isLoadingRef = React.useRef(false);
-  const scrollTimeoutRef = React.useRef(null);
+// Custom MenuList with infinite scroll pagination and keyboard navigation support
+const CustomMenuList = (props) => {
+  const { children, selectProps } = props;
 
+  const isLoading = props.isLoading ?? selectProps?.isLoadingMore ?? false;
+  const hasMore = props.hasMore ?? selectProps?.hasMore ?? false;
+  const onLoadMore = props.onLoadMore ?? selectProps?.onLoadMore;
+  const totalCount = props.totalCount ?? selectProps?.totalCount ?? 0;
+
+  const scrollRef = React.useRef(null);
+  const savedScrollTop = React.useRef(0);
+  const [isLoadingMore, setIsLoadingMore] = React.useState(false);
+  const isLoadingRef = React.useRef(false);
+
+  // Merge local scrollRef with react-select's innerRef so react-select can scroll on ArrowDown/ArrowUp
+  const setRefs = React.useCallback(
+    (node) => {
+      scrollRef.current = node;
+      if (node && savedScrollTop.current > 0) {
+        node.scrollTop = savedScrollTop.current;
+      }
+      if (typeof props.innerRef === "function") {
+        props.innerRef(node);
+      } else if (props.innerRef) {
+        props.innerRef.current = node;
+      }
+    },
+    [props.innerRef]
+  );
+
+  // Handle scroll to bottom for infinite loading
   const handleScroll = (event) => {
-    const target = event.target;
+    props.innerProps?.onScroll?.(event);
+
+    const target = event.currentTarget || event.target;
+    if (!target) return;
+
+    savedScrollTop.current = target.scrollTop;
+
     const scrollTop = target.scrollTop;
     const scrollHeight = target.scrollHeight;
     const clientHeight = target.clientHeight;
 
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
+    const atBottom = scrollHeight - scrollTop <= clientHeight + 80;
+
+    if (atBottom && hasMore && !isLoading && !isLoadingRef.current) {
+      isLoadingRef.current = true;
+      setIsLoadingMore(true);
+      onLoadMore?.();
     }
-
-    scrollTimeoutRef.current = setTimeout(() => {
-      const atBottom = scrollHeight - scrollTop <= clientHeight + 50;
-      const atTop = scrollTop <= 50;
-
-      if (
-        atBottom &&
-        !isLoadingRef.current &&
-        hasMore &&
-        onLoadMore &&
-        !isLoadingPrevious
-      ) {
-        isLoadingRef.current = true;
-        setIsLoadingMore(true);
-        onLoadMore();
-      }
-
-      if (
-        atTop &&
-        !isLoadingRef.current &&
-        hasPrevious &&
-        onLoadPrevious &&
-        scrollTop > 0 &&
-        !isLoadingMore
-      ) {
-        previousScrollHeight.current = scrollHeight;
-        isLoadingRef.current = true;
-        setIsLoadingPrevious(true);
-        onLoadPrevious();
-      }
-    }, 100);
   };
 
+  // Restore scroll position after new options are rendered to prevent jumping to top
+  React.useLayoutEffect(() => {
+    if (scrollRef.current && savedScrollTop.current > 0) {
+      scrollRef.current.scrollTop = savedScrollTop.current;
+    }
+  }, [children]);
+
+  // Reset loading flag when query finishes loading
   React.useEffect(() => {
-    if (
-      !isLoading &&
-      !isLoadingMore &&
-      !isLoadingPrevious &&
-      isLoadingRef.current
-    ) {
+    if (!isLoading) {
       isLoadingRef.current = false;
+      setIsLoadingMore(false);
     }
-  }, [isLoading, isLoadingMore, isLoadingPrevious]);
+  }, [isLoading]);
+
+  // Support keyboard navigation: when user moves focus (Key Down) near the end of loaded items, load more
+  const focusedOption = props.focusedOption;
+  const options = selectProps?.options || [];
 
   React.useEffect(() => {
-    if (
-      !isLoadingPrevious &&
-      previousScrollHeight.current > 0 &&
-      scrollRef.current
-    ) {
-      const newScrollHeight = scrollRef.current.scrollHeight;
-      const scrollDiff = newScrollHeight - previousScrollHeight.current;
-      if (scrollDiff > 0) {
-        scrollRef.current.scrollTop = scrollDiff;
+    if (focusedOption && hasMore && !isLoading && !isLoadingRef.current) {
+      const index = options.findIndex((opt) => opt.value === focusedOption.value);
+      if (index !== -1 && index >= options.length - 2) {
+        isLoadingRef.current = true;
+        setIsLoadingMore(true);
+        onLoadMore?.();
       }
-      previousScrollHeight.current = 0;
-      setTimeout(() => {
-        setIsLoadingPrevious(false);
-      }, 100);
     }
-  }, [isLoadingPrevious]);
+  }, [focusedOption, options, hasMore, isLoading, onLoadMore]);
 
-  React.useEffect(() => {
-    if (!isLoading && isLoadingMore) {
-      setTimeout(() => {
-        setIsLoadingMore(false);
-      }, 100);
-    }
-  }, [isLoading, isLoadingMore]);
-
-  const selectedValue = selectProps.value?.value;
+  const selectedValue = selectProps?.value?.value;
   const hasSelectedItemNotInList =
     selectedValue &&
-    !selectProps.options?.some(
+    !selectProps?.options?.some(
       (opt) =>
         opt.value === selectedValue &&
         opt.value !== "separator" &&
-        opt.value !== "header",
+        opt.value !== "header"
     );
   const currentCount =
-    selectProps.options?.filter(
-      (opt) => opt.value !== "separator" && opt.value !== "header",
+    selectProps?.options?.filter(
+      (opt) => opt.value !== "separator" && opt.value !== "header"
     ).length || 0;
-  const totalCount = selectProps.totalCount || 0;
-
-  React.useEffect(() => {
-    const scrollElement = scrollRef.current;
-    if (scrollElement) {
-      scrollElement.addEventListener("scroll", handleScroll);
-      return () => {
-        scrollElement.removeEventListener("scroll", handleScroll);
-        if (scrollTimeoutRef.current) {
-          clearTimeout(scrollTimeoutRef.current);
-        }
-      };
-    }
-  }, [hasMore, hasPrevious]);
 
   return (
-    <div ref={scrollRef} style={{ maxHeight: "300px", overflowY: "auto" }}>
-      {isLoadingPrevious && (
-        <ScrollLoader
-          count={2}
-          currentCount={currentCount}
-          totalCount={totalCount}
-          direction="up"
-        />
-      )}
+    <div
+      {...props.innerProps}
+      ref={setRefs}
+      onScroll={handleScroll}
+      className={props.className}
+      style={{
+        maxHeight: "300px",
+        overflowY: "auto",
+        position: "relative",
+        ...props.getStyles?.("menuList", props),
+      }}
+    >
       {hasSelectedItemNotInList && (
         <div className="px-3 py-2 small bg-light border-bottom">
           <FaCheck className="me-1 text-success" size={10} />
@@ -339,7 +313,6 @@ const CustomMenuList = ({
       {!isLoading &&
         !hasMore &&
         currentCount > 0 &&
-        !isLoadingPrevious &&
         !isLoadingMore && (
           <div className="text-center py-2 text-muted small border-top">
             <FaCheck className="me-1 text-success" size={10} />
@@ -348,6 +321,11 @@ const CustomMenuList = ({
         )}
     </div>
   );
+};
+
+// Stable component reference to prevent unmounting/remounting MenuList on re-render
+const customSelectComponents = {
+  MenuList: CustomMenuList,
 };
 
 const WarehouseForm = ({
@@ -545,68 +523,50 @@ const WarehouseForm = ({
 
   // ACCUMULATION EFFECTS - Must come AFTER the queries
   useEffect(() => {
-    if (consignorData?.data && consignorData.data.length > 0) {
-      const newItems = consignorData.data.filter(
-        (item) => !allConsignors.some((existing) => existing.id === item.id),
-      );
-
-      if (newItems.length > 0) {
-        if (consignorPage === 1) {
-          setAllConsignors(consignorData.data);
-        } else if (
-          consignorPage < Math.min(...Array.from(loadedConsignorPages))
-        ) {
-          setAllConsignors((prev) => [...newItems, ...prev]);
-        } else {
+    if (consignorData?.data) {
+      if (consignorPage === 1) {
+        setAllConsignors(consignorData.data);
+      } else {
+        const newItems = consignorData.data.filter(
+          (item) => !allConsignors.some((existing) => existing.id === item.id),
+        );
+        if (newItems.length > 0) {
           setAllConsignors((prev) => [...prev, ...newItems]);
         }
       }
-
       setLoadedConsignorPages((prev) => new Set([...prev, consignorPage]));
     }
   }, [consignorData?.data, consignorPage]);
 
   useEffect(() => {
-    if (consigneeData?.data && consigneeData.data.length > 0) {
-      const newItems = consigneeData.data.filter(
-        (item) => !allConsignees.some((existing) => existing.id === item.id),
-      );
-
-      if (newItems.length > 0) {
-        if (consigneePage === 1) {
-          setAllConsignees(consigneeData.data);
-        } else if (
-          consigneePage < Math.min(...Array.from(loadedConsigneePages))
-        ) {
-          setAllConsignees((prev) => [...newItems, ...prev]);
-        } else {
+    if (consigneeData?.data) {
+      if (consigneePage === 1) {
+        setAllConsignees(consigneeData.data);
+      } else {
+        const newItems = consigneeData.data.filter(
+          (item) => !allConsignees.some((existing) => existing.id === item.id),
+        );
+        if (newItems.length > 0) {
           setAllConsignees((prev) => [...prev, ...newItems]);
         }
       }
-
       setLoadedConsigneePages((prev) => new Set([...prev, consigneePage]));
     }
   }, [consigneeData?.data, consigneePage]);
 
   useEffect(() => {
-    if (materialOwnerData?.data && materialOwnerData.data.length > 0) {
-      const newItems = materialOwnerData.data.filter(
-        (item) =>
-          !allMaterialOwners.some((existing) => existing.id === item.id),
-      );
-
-      if (newItems.length > 0) {
-        if (materialOwnerPage === 1) {
-          setAllMaterialOwners(materialOwnerData.data);
-        } else if (
-          materialOwnerPage < Math.min(...Array.from(loadedMaterialOwnerPages))
-        ) {
-          setAllMaterialOwners((prev) => [...newItems, ...prev]);
-        } else {
+    if (materialOwnerData?.data) {
+      if (materialOwnerPage === 1) {
+        setAllMaterialOwners(materialOwnerData.data);
+      } else {
+        const newItems = materialOwnerData.data.filter(
+          (item) =>
+            !allMaterialOwners.some((existing) => existing.id === item.id),
+        );
+        if (newItems.length > 0) {
           setAllMaterialOwners((prev) => [...prev, ...newItems]);
         }
       }
-
       setLoadedMaterialOwnerPages(
         (prev) => new Set([...prev, materialOwnerPage]),
       );
@@ -2174,19 +2134,11 @@ const WarehouseForm = ({
                                   Loading consignors...
                                 </LoadingMessage>
                               )}
-                              components={{
-                                MenuList: (props) => (
-                                  <CustomMenuList
-                                    {...props}
-                                    isLoading={isFetchingConsignor}
-                                    hasMore={hasMoreConsignor}
-                                    hasPrevious={hasPreviousConsignor}
-                                    onLoadPrevious={loadPreviousConsignors}
-                                    onLoadMore={loadMoreConsignors}
-                                    totalCount={consignorData?.total || 0}
-                                  />
-                                ),
-                              }}
+                              components={customSelectComponents}
+                              isLoadingMore={isFetchingConsignor}
+                              hasMore={hasMoreConsignor}
+                              onLoadMore={loadMoreConsignors}
+                              totalCount={consignorData?.total || 0}
                               required
                             />
                           </div>
@@ -2237,19 +2189,11 @@ const WarehouseForm = ({
                                   Loading consignees...
                                 </LoadingMessage>
                               )}
-                              components={{
-                                MenuList: (props) => (
-                                  <CustomMenuList
-                                    {...props}
-                                    isLoading={isFetchingConsignee}
-                                    hasMore={hasMoreConsignee}
-                                    hasPrevious={hasPreviousConsignee}
-                                    onLoadPrevious={loadPreviousConsignees}
-                                    onLoadMore={loadMoreConsignees}
-                                    totalCount={consigneeData?.total || 0}
-                                  />
-                                ),
-                              }}
+                              components={customSelectComponents}
+                              isLoadingMore={isFetchingConsignee}
+                              hasMore={hasMoreConsignee}
+                              onLoadMore={loadMoreConsignees}
+                              totalCount={consigneeData?.total || 0}
                               required
                             />
                           </div>
@@ -2300,19 +2244,11 @@ const WarehouseForm = ({
                                   Loading material owners...
                                 </LoadingMessage>
                               )}
-                              components={{
-                                MenuList: (props) => (
-                                  <CustomMenuList
-                                    {...props}
-                                    isLoading={isFetchingMaterialOwner}
-                                    hasMore={hasMoreMaterialOwner}
-                                    hasPrevious={hasPreviousMaterialOwner}
-                                    onLoadPrevious={loadPreviousMaterialOwners}
-                                    onLoadMore={loadMoreMaterialOwners}
-                                    totalCount={materialOwnerData?.total || 0}
-                                  />
-                                ),
-                              }}
+                              components={customSelectComponents}
+                              isLoadingMore={isFetchingMaterialOwner}
+                              hasMore={hasMoreMaterialOwner}
+                              onLoadMore={loadMoreMaterialOwners}
+                              totalCount={materialOwnerData?.total || 0}
                             />
                           </div>
                           {formData.materialOwnerAddress && (

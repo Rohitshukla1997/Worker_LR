@@ -1,5 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { getGodownTPApi, postGodownTPApi } from "../data/data";
+import {
+  getGodownTPApi,
+  postGodownTPApi,
+  getConsignorApi,
+  getConsigneeApi,
+} from "../data/data";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast, ToastContainer } from "react-toastify";
 import DateRangeFilterCredence from "../../ReusableComponents/DateRangeFilterCredence";
@@ -141,22 +146,52 @@ const GodownLr = () => {
     }
   }, [companyList]);
 
-  // Extract consignor and consignee options from fetched data
-  useEffect(() => {
-    if (getGodownTP?.receipts) {
-      const consignorsMap = {};
-      const consigneesMap = {};
+  // Fetch full consignors and consignees for filters
+  const { data: consignorsResponse } = useQuery({
+    queryKey: ["filterConsignors", { search: "", page: 1, limit: 100 }],
+    queryFn: getConsignorApi,
+  });
 
+  const { data: consigneesResponse } = useQuery({
+    queryKey: ["filterConsignees", { search: "", page: 1, limit: 100 }],
+    queryFn: getConsigneeApi,
+  });
+
+  // Extract consignor options from API or fallback to fetched receipts
+  useEffect(() => {
+    if (consignorsResponse?.data && consignorsResponse.data.length > 0) {
+      setConsignorOptions(
+        consignorsResponse.data.map((c) => ({
+          value: c.id,
+          label: c.name,
+        }))
+      );
+    } else if (getGodownTP?.receipts) {
+      const consignorsMap = {};
       getGodownTP.receipts.forEach((item) => {
-        // Add consignor
         if (item.consignorId && item.consignorName) {
           consignorsMap[item.consignorId] = {
             value: item.consignorId,
             label: item.consignorName,
           };
         }
+      });
+      setConsignorOptions(Object.values(consignorsMap));
+    }
+  }, [consignorsResponse, getGodownTP]);
 
-        // Add consignee
+  // Extract consignee options from API or fallback to fetched receipts
+  useEffect(() => {
+    if (consigneesResponse?.data && consigneesResponse.data.length > 0) {
+      setConsigneeOptions(
+        consigneesResponse.data.map((c) => ({
+          value: c.id,
+          label: c.name,
+        }))
+      );
+    } else if (getGodownTP?.receipts) {
+      const consigneesMap = {};
+      getGodownTP.receipts.forEach((item) => {
         if (item.consigneeId && item.consigneeName) {
           consigneesMap[item.consigneeId] = {
             value: item.consigneeId,
@@ -164,11 +199,9 @@ const GodownLr = () => {
           };
         }
       });
-
-      setConsignorOptions(Object.values(consignorsMap));
       setConsigneeOptions(Object.values(consigneesMap));
     }
-  }, [getGodownTP]);
+  }, [consigneesResponse, getGodownTP]);
 
   // ========== POST ==========
   const { mutate: postGodownTP, isLoading: isSubmitting } = useMutation({
@@ -617,7 +650,7 @@ const GodownLr = () => {
               onChange={setSelectedConsignor}
               isClearable
               placeholder="Consignor..."
-              width="100px"
+              width="160px"
             />
           </div>
 
@@ -628,7 +661,7 @@ const GodownLr = () => {
               onChange={setSelectedConsignee}
               isClearable
               placeholder="Consignee..."
-              width="100px"
+              width="160px"
             />
           </div>
 
@@ -639,7 +672,7 @@ const GodownLr = () => {
               onChange={setSelectedCompany}
               isClearable
               placeholder="Company..."
-              width="100px"
+              width="160px"
             />
           </div>
 

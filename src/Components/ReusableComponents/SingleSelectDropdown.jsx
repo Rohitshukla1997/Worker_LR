@@ -13,9 +13,13 @@ const SingleSelectDropdown = ({
   className = "",
   labelClassName = "",
   containerClassName = "",
+  width,
 }) => {
   return (
-    <div className={`w-full ${containerClassName}`}>
+    <div
+      className={`w-full ${containerClassName}`}
+      style={width ? { width, minWidth: width } : undefined}
+    >
       {label && (
         <label
           className={`block text-sm font-medium text-gray-700 mb-1 ${labelClassName}`}
@@ -33,6 +37,10 @@ const SingleSelectDropdown = ({
           isSearchable={true}
           className="basic-single"
           classNamePrefix="select"
+          menuPortalTarget={
+            typeof document !== "undefined" ? document.body : null
+          }
+          menuPosition="fixed"
           classNames={{
             control: (state) =>
               `min-h-[38px] border ${
@@ -41,7 +49,8 @@ const SingleSelectDropdown = ({
             placeholder: () => "text-gray-400",
             input: () => "text-gray-900",
             singleValue: () => "text-gray-900",
-            menu: () => "border border-gray-300 rounded-md shadow-lg mt-1",
+            menu: () =>
+              "border border-gray-300 rounded-md shadow-lg mt-1 bg-white z-50",
             option: (state) =>
               `${
                 state.isSelected
@@ -60,6 +69,10 @@ const SingleSelectDropdown = ({
             control: (base) => ({
               ...base,
               minHeight: "38px",
+            }),
+            menuPortal: (base) => ({
+              ...base,
+              zIndex: 9999,
             }),
           }}
         />
